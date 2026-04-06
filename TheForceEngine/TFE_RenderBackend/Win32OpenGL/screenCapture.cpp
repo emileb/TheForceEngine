@@ -115,7 +115,12 @@ static void flipVert32bpp(void* mem, u32 w, u32 h)
 
 void ScreenCapture::captureFrontBufferToMemory(u32* mem)
 {
+#ifdef USE_GLES
+	// GLES does not support reading from GL_FRONT; read from GL_BACK instead.
+	glReadBuffer(GL_BACK);
+#else
 	glReadBuffer(GL_FRONT);
+#endif
 	glReadPixels(0, 0, m_width, m_height, GL_RGBA, GL_UNSIGNED_BYTE, mem);
 
 	// Need to flip image upside-down. OpenGL has (0|0) at lower left

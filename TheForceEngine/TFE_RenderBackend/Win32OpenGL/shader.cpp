@@ -5,6 +5,9 @@
 #include <TFE_FileSystem/filestream.h>
 #include <TFE_FileSystem/paths.h>
 #include <TFE_RenderBackend/renderBackend.h>
+#ifdef USE_GLES
+#include <TFE_RenderBackend/Win32OpenGL/openGL_Caps.h>
+#endif
 #include "gl.h"
 #include <assert.h>
 #include <vector>
@@ -25,17 +28,122 @@ namespace ShaderGL
 	};
 
 	static const s32 c_glslVersion[] = { 130, 330, 450 };
+#ifdef USE_GLES
+	static const GLchar* c_glslVersionString[] = { "#version 130\n", "#version 320 es\n", "#version 450\n" };
+#else
 	static const GLchar* c_glslVersionString[] = { "#version 130\n", "#version 330\n", "#version 450\n" };
+#endif
 	static std::vector<char> s_buffers[2];
 	static std::string s_defineString;
 	static std::string s_vertexFile, s_fragmentFile;
+
+	// If you get an error please report on github. You may try different GL context version or GLSL version. See GL<>GLSL version table at the top of this file.
+	bool CheckShader(GLuint handle, const char* desc)
+	{
+		GLint status = 0, log_length = 0;
+		glGetShaderiv(handle, GL_COMPILE_STATUS, &status);
+		glGetShaderiv(handle, GL_INFO_LOG_LENGTH, &log_length);
+		if ((GLboolean)status == GL_FALSE)
+		{
+			TFE_System::logWrite(LOG_ERROR, "Shader", "Failed to compile '%s'!\n", desc);
+		}
+
+		if (log_length > 1)
+		{
+			std::vector<char> buf;
+			buf.resize(size_t(log_length + 1));
+			glGetShaderInfoLog(handle, log_length, NULL, (GLchar*)buf.data());
+			TFE_System::logWrite(LOG_ERROR, "Shader", "Error: %s\n", buf.data());
+		}
+		return (GLboolean)status == GL_TRUE;
+	}
 }
+
+#ifdef USE_GLES
+// Extension and precision strings injected into GLES shaders.
+static const char* s_ext_OES_standard_derivatives  = "#extension GL_OES_standard_derivatives : enable\n";
+static const char* s_ext_EXT_clip_cull_distance     = "#extension GL_EXT_clip_cull_distance : enable\n";
+static const char* s_ext_NV_noperspective            = "#extension GL_NV_shader_noperspective_interpolation : enable\n";
+static const char* s_noperspective_define            = "#define NOPERSPECTIVE noperspective\n";
+static const char* s_no_noperspective_define         = "#define NOPERSPECTIVE\n";
+static const char* s_defaultPrecisions = R"(
+	precision highp int;
+	precision highp float;
+	precision highp sampler2D;
+	precision highp usampler2D;
+	precision highp sampler3D;
+	precision highp samplerCube;
+	precision highp sampler2DArray;
+	precision highp sampler2DShadow;
+	precision highp samplerCubeShadow;
+	precision highp sampler2DArrayShadow;
+	precision highp samplerBuffer;
+	precision highp isamplerBuffer;
+	precision highp usamplerBuffer;
+)";
+#else
+// On desktop GL, precision qualifiers are not used; define them away.
+static const char* s_defaultPrecisions = R"(
+	#define highp
+	#define mediump
+	#define lowp
+)";
+static const char* s_noperspective_define = "#define NOPERSPECTIVE noperspective\n";
+#endif
 
 bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL, const char* defineString/* = nullptr*/, ShaderVersion version/* = SHADER_VER_COMPTABILE*/)
 {
 	// Create shaders
 	m_shaderVersion = version;
 
+#ifdef USE_GLES
+	// GLES: build shader parts dynamically to inject version, extensions, and precision qualifiers.
+	u32 vertHandle = glCreateShader(GL_VERTEX_SHADER);
+	{
+		std::vector<const GLchar*> parts;
+		parts.push_back(ShaderGL::c_glslVersionString[m_shaderVersion]);
+		if (OpenGL_Caps::supportsClipping())
+			parts.push_back(s_ext_EXT_clip_cull_distance);
+		if (OpenGL_Caps::supportsNoPerspectiveInterpolation())
+		{
+			parts.push_back(s_ext_NV_noperspective);
+			parts.push_back(s_noperspective_define);
+		}
+		else
+		{
+			parts.push_back(s_no_noperspective_define);
+		}
+		parts.push_back(s_defaultPrecisions);
+		if (defineString) parts.push_back(defineString);
+		parts.push_back(vertexShaderGLSL);
+		glShaderSource(vertHandle, (GLsizei)parts.size(), parts.data(), nullptr);
+	}
+	glCompileShader(vertHandle);
+	if (!ShaderGL::CheckShader(vertHandle, ShaderGL::s_vertexFile.c_str())) { return false; }
+
+	u32 fragHandle = glCreateShader(GL_FRAGMENT_SHADER);
+	{
+		std::vector<const GLchar*> parts;
+		parts.push_back(ShaderGL::c_glslVersionString[m_shaderVersion]);
+		parts.push_back(s_ext_OES_standard_derivatives);
+		if (OpenGL_Caps::supportsNoPerspectiveInterpolation())
+		{
+			parts.push_back(s_ext_NV_noperspective);
+			parts.push_back(s_noperspective_define);
+		}
+		else
+		{
+			parts.push_back(s_no_noperspective_define);
+		}
+		parts.push_back(s_defaultPrecisions);
+		if (defineString) parts.push_back(defineString);
+		parts.push_back(fragmentShaderGLSL);
+		glShaderSource(fragHandle, (GLsizei)parts.size(), parts.data(), nullptr);
+	}
+	glCompileShader(fragHandle);
+	if (!ShaderGL::CheckShader(fragHandle, ShaderGL::s_fragmentFile.c_str())) { return false; }
+#else
+	// Desktop GL path (with macOS version override).
 	const GLchar* version_string;
 	if (strcmp(SDL_GetPlatform(), "Mac OS X") == 0) {
 		// Force GLSL version 410 for macOS
@@ -71,6 +179,7 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 		TFE_System::logWrite(LOG_ERROR, "Shader", "Fragment shader compilation failed:\n%s", infoLog);
 		return false;
 	}
+#endif
 
 	m_gpuHandle = glCreateProgram();
 	glAttachShader(m_gpuHandle, vertHandle);

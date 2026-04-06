@@ -114,7 +114,9 @@ namespace TFE_RenderState
 			}
 			if (stateToChange & STATE_WIREFRAME)
 			{
+#ifndef USE_GLES
 				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+#endif
 			}
 			s_currentState |= stateFlags;
 		}
@@ -147,7 +149,9 @@ namespace TFE_RenderState
 			}
 			if (stateToChange & STATE_WIREFRAME)
 			{
+#ifndef USE_GLES
 				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
 			}
 			s_currentState &= ~stateFlags;
 		}

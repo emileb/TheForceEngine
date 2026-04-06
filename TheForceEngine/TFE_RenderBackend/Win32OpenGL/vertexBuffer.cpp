@@ -88,7 +88,16 @@ void VertexBuffer::bind() const
 	for (u32 i = 0; i < m_attrCount; i++)
 	{
 		glEnableVertexAttribArray(m_attrMapping[i].id);
+#ifdef USE_GLES
+		// GLES requires glVertexAttribIPointer for integer types; using glVertexAttribPointer
+		// for integers causes undefined behaviour on some GLES implementations.
+		if (m_attrMapping[i].type == AttributeType::ATYPE_FLOAT || m_attrMapping[i].normalized)
+			glVertexAttribPointer(m_attrMapping[i].id, m_attrMapping[i].channels, c_glType[m_attrMapping[i].type], m_attrMapping[i].normalized, m_stride, (void*)(iptr)m_attrMapping[i].offset);
+		else
+			glVertexAttribIPointer(m_attrMapping[i].id, m_attrMapping[i].channels, c_glType[m_attrMapping[i].type], m_stride, (void*)(iptr)m_attrMapping[i].offset);
+#else
 		glVertexAttribPointer(m_attrMapping[i].id, m_attrMapping[i].channels, c_glType[m_attrMapping[i].type], m_attrMapping[i].normalized, m_stride, (void*)(iptr)m_attrMapping[i].offset);
+#endif
 	}
 }
 

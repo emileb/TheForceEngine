@@ -25,6 +25,10 @@ enum TexFormat
 	TEX_R8,
 	TEX_RGBAF16,
 	TEX_R16F,
+#ifdef USE_GLES
+	TEX_R11F_G11F_B10F,
+	TEX_DEPTH24_STENCIL8,
+#endif
 	TEX_COUNT
 };
 
@@ -59,4 +63,7 @@ private:
 	u32 m_layers;
 	u32 m_mipCount;
 	u32 m_gpuHandle;
+#ifdef USE_GLES
+	bool m_handleOwner{ true };
+#endif
 };

@@ -77,7 +77,11 @@ void RenderTarget::bind()
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, m_gpuHandle);
 	glViewport(0, 0, m_texture[0]->getWidth(), m_texture[0]->getHeight());
+#ifdef USE_GLES
+	glDepthRangef(0.0f, 1.0f);
+#else
 	glDepthRange(0.0f, 1.0f);
+#endif
 }
 
 void RenderTarget::clear(const f32* color, f32 depth, u8 stencil, bool clearColor)
@@ -92,7 +96,11 @@ void RenderTarget::clear(const f32* color, f32 depth, u8 stencil, bool clearColo
 	{
 		clearFlags |= GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT;
 		TFE_RenderState::setStateEnable(true, STATE_DEPTH_WRITE | STATE_STENCIL_WRITE);
+#ifdef USE_GLES
+		glClearDepthf(depth);
+#else
 		glClearDepth(depth);
+#endif
 		glClearStencil(stencil);
 	}
 
@@ -104,7 +112,11 @@ void RenderTarget::clear(const f32* color, f32 depth, u8 stencil, bool clearColo
 	 if (m_depthBufferHandle)
 	 {
 		 TFE_RenderState::setStateEnable(true, STATE_DEPTH_WRITE);
+#ifdef USE_GLES
+		 glClearDepthf(depth);
+#else
 		 glClearDepth(depth);
+#endif
 		 glClear(GL_DEPTH_BUFFER_BIT);
 	 }
  }

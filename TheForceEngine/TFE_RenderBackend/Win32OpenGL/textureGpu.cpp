@@ -8,11 +8,19 @@
 #include <assert.h>
 
 static std::vector<u8> s_workBuffer;
+#ifdef USE_GLES
+const GLenum c_channelFormat[] = { GL_UNSIGNED_BYTE, GL_UNSIGNED_BYTE, GL_FLOAT, GL_FLOAT, GL_FLOAT, GL_UNSIGNED_INT_24_8 };
+const GLenum c_internalFormat[] = { GL_RGBA8, GL_R8, GL_RGBA16F, GL_R16F, GL_R11F_G11F_B10F, GL_DEPTH24_STENCIL8 };
+const GLenum c_baseFormat[]     = { GL_RGBA, GL_RED, GL_RGBA, GL_RED, GL_RGB, GL_DEPTH_STENCIL };
+const GLenum c_channelCount[]   = { 4, 1, 4, 1, 3, 4 };
+const GLenum c_bytesPerChannel[]= { 1, 1, 2, 2, 4, 4 };
+#else
 const GLenum c_channelFormat[] = { GL_UNSIGNED_BYTE, GL_UNSIGNED_BYTE, GL_FLOAT, GL_FLOAT };
 const GLenum c_internalFormat[] = { GL_RGBA8, GL_R8, GL_RGBA16F, GL_R16F };
 const GLenum c_baseFormat[] = { GL_RGBA, GL_RED, GL_RGBA, GL_RED };
 const GLenum c_channelCount[] = { 4, 1, 4, 1 };
 const GLenum c_bytesPerChannel[] = {1, 1, 2, 2 };
+#endif
 
 static const char* c_magFilterStr[] =
 {
@@ -26,11 +34,19 @@ static const char* c_texFormatStr[] =
 	"TEX_R8",
 	"TEX_RGBAF16",
 	"TEX_R16F",
+#ifdef USE_GLES
+	"TEX_R11F_G11F_B10F",
+	"TEX_DEPTH24_STENCIL8",
+#endif
 };
 
 TextureGpu::~TextureGpu()
 {
+#ifdef USE_GLES
+	if (m_gpuHandle && m_handleOwner)
+#else
 	if (m_gpuHandle)
+#endif
 	{
 		glDeleteTextures(1, &m_gpuHandle);
 		m_gpuHandle = 0;
@@ -249,6 +265,8 @@ void TextureGpu::clearSlots(u32 count, u32 start/* = 0*/)
 void TextureGpu::readCpu(u8* image)
 {
 	glBindTexture(GL_TEXTURE_2D, m_gpuHandle);
+#ifndef USE_GLES
 	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+#endif
 	glBindTexture(GL_TEXTURE_2D, 0);
 }

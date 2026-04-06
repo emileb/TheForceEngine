@@ -13,6 +13,8 @@ enum CapabilityFlags
 	CAP_NON_POW_2 = (1 << 4),
 	CAP_TEXTURE_ARRAY = (1 << 5),
 	CAP_ANISO = (1 << 6),
+	CAP_CLIP_DISTANCES = (1 << 7),
+	CAP_NOPERSPECTIVE_INTERPOLATION = (1 << 8),
 
 	CAP_2_1_FULL = (CAP_VBO | CAP_PBO | CAP_NON_POW_2),
 	CAP_3_3_FULL = (CAP_PBO | CAP_VBO | CAP_FBO | CAP_UBO | CAP_NON_POW_2 | CAP_TEXTURE_ARRAY)
@@ -24,6 +26,7 @@ namespace OpenGL_Caps
 	static u32 m_deviceTier = 0;
 	static s32 m_textureBufferMaxSize = 0;
 	static f32 m_maxAnisotropy = 1.0f;
+	static s32 m_maxClipDistances = 0;
 
 	enum SpecMinimum
 	{
@@ -91,6 +94,41 @@ namespace OpenGL_Caps
 			m_maxAnisotropy = 0.0f;
 		}
 
+#ifdef USE_GLES
+		if (SDL_GL_ExtensionSupported("GL_EXT_clip_cull_distance"))
+#endif
+		{
+			glGetIntegerv(GL_MAX_CLIP_DISTANCES, &m_maxClipDistances);
+			if (m_maxClipDistances >= 8)
+			{
+				m_supportFlags |= CAP_CLIP_DISTANCES;
+			}
+			else
+			{
+				m_maxClipDistances = 8;
+			}
+		}
+#ifdef USE_GLES
+		else
+		{
+			TFE_System::logWrite(LOG_WARNING, "OpenGL_Caps", "GL_EXT_clip_cull_distance not supported, using SW clipping instead.");
+			m_maxClipDistances = 8;
+		}
+#endif
+
+#ifdef USE_GLES
+		if (SDL_GL_ExtensionSupported("GL_NV_shader_noperspective_interpolation"))
+#endif
+		{
+			m_supportFlags |= CAP_NOPERSPECTIVE_INTERPOLATION;
+		}
+#ifdef USE_GLES
+		else
+		{
+			TFE_System::logWrite(LOG_WARNING, "OpenGL_Caps", "GL_NV_shader_noperspective_interpolation not supported, some rendering may look incorrect.");
+		}
+#endif
+
 		// clear any pending errors.
 		(void)glGetError();
 
@@ -108,6 +146,19 @@ namespace OpenGL_Caps
 		{
 			m_deviceTier = DEV_TIER_1;
 		}
+
+#ifdef USE_GLES
+		// On GLES, GL_OES_standard_derivatives is required for the GPU renderer.
+		// Override device tier when it is available (the ARB extension checks above don't apply).
+		if (SDL_GL_ExtensionSupported("GL_OES_standard_derivatives"))
+		{
+			m_deviceTier = DEV_TIER_3;
+		}
+		else
+		{
+			TFE_System::logWrite(LOG_ERROR, "OpenGL_Caps", "GL_OES_standard_derivatives not supported on this GLES device!");
+		}
+#endif
 	}
 
 	bool supportsPbo()
@@ -138,6 +189,16 @@ namespace OpenGL_Caps
 	bool supportsAniso()
 	{
 		return (m_supportFlags & CAP_ANISO) != 0;
+	}
+
+	bool supportsClipping()
+	{
+		return (m_supportFlags & CAP_CLIP_DISTANCES) != 0;
+	}
+
+	bool supportsNoPerspectiveInterpolation()
+	{
+		return (m_supportFlags & CAP_NOPERSPECTIVE_INTERPOLATION) != 0;
 	}
 
 	bool deviceSupportsGpuBlit()

@@ -1,2 +1,7 @@
-file(GLOB SOURCES "*.cpp" "*.c")
+file(GLOB SOURCES "*.cpp")
+if(USE_GLES)
+    list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/glad_es.c")
+else()
+    list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/glad.c")
+endif()
 target_sources(tfe PRIVATE ${SOURCES})

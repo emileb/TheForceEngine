@@ -122,6 +122,9 @@ namespace TFE_RenderBackend
 		}
 
 		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, true);
+#ifdef USE_GLES
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+#endif
 
 		if (s_isMacOS) {
 			// macOS specific OpenGL context setup
@@ -148,7 +151,11 @@ namespace TFE_RenderBackend
 			return nullptr;
 		}
 
+#ifdef USE_GLES
+		int glver = gladLoadGLES2Loader((GLADloadproc)SDL_GL_GetProcAddress);
+#else
 		int glver = gladLoadGL((GLADloadfunc)SDL_GL_GetProcAddress);
+#endif
 		if (glver == 0)
 		{
 			TFE_System::logWrite(LOG_ERROR, "RenderBackend", "cannot initialize GLAD");
@@ -241,7 +248,11 @@ namespace TFE_RenderBackend
 		s_bloomMerge->init();
 		
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+#ifdef USE_GLES
+		glClearDepthf(0.0f);
+#else
 		glClearDepth(0.0f);
+#endif
 
 		s_palette = new DynamicTexture();
 		s_palette->create(256, 1, 2);
@@ -311,7 +322,11 @@ namespace TFE_RenderBackend
 	void setClearColor(const f32* color)
 	{
 		glClearColor(color[0], color[1], color[2], color[3]);
+#ifdef USE_GLES
+		glClearDepthf(0.0f);
+#else
 		glClearDepth(0.0f);
+#endif
 
 		memcpy(s_clearColor, color, sizeof(f32) * 4);
 	}
