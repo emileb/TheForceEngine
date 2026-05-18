@@ -13,7 +13,7 @@ namespace TFE_Audio
 		SystemMidiDevice();
 		~SystemMidiDevice() override;
 
-		MidiDeviceType getType() override { return MIDI_TYPE_SYSTEM; }
+		MidiDeviceType getType() override { return MIDI_TYPE_SF2; }
 
 		void exit() override;
 		// The system device does not have proper global volume control.

@@ -68,6 +68,7 @@ static void tfe_sigaction(int signo, siginfo_t *siginfo, void *uctx)
 		TFE_System::logWrite(LOG_ERROR, "CrashHandler", "faulting address %p", siginfo->si_addr);
 	}
 
+#ifndef __ANDROID__
 	// backtrace() can also segfault; purposefully ignore SEGV before calling it.
 	signal(SIGSEGV, SIG_IGN);
 	entries = backtrace(buf, 512);
@@ -80,7 +81,7 @@ static void tfe_sigaction(int signo, siginfo_t *siginfo, void *uctx)
 	} else {
 		TFE_System::logWrite(LOG_ERROR, "CrashHandler", "no backtrace possible");
 	}
-
+#endif
 	// for certain signals, the default handler will create
 	// a coredump if enabled by administrator.
 	signal(signo, SIG_DFL);

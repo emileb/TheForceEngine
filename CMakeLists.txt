@@ -51,21 +51,42 @@ include(GNUInstallDirs)
 
 ## Options
 option(ENABLE_TFE "Enable building “The Force Engine”" ON)
-option(ENABLE_SYSMIDI "Enable System-MIDI Output if RTMidi is available" ON)
+option(ENABLE_SYSMIDI "Enable System-MIDI Output if RTMidi is available" OFF)
 option(ENABLE_EDITOR "Enable TFE Editor" OFF)
 option(ENABLE_ADJUSTABLEHUD_MOD "Install the build‑in “AdjustableHud mod” with TFE" ON)
 option(USE_GLES "Use OpenGL ES 3.x renderer instead of desktop OpenGL" OFF)
 if(ENABLE_TFE)
-	add_executable(tfe)
+	if(ANDROID)
+		add_library(tfe SHARED)
+	else()
+		add_executable(tfe)
+	endif()
 
 	if(APPLE)
 		# cant have executable have the same name as the cmake working dir
 		set_target_properties(tfe PROPERTIES OUTPUT_NAME "theforceengine_osx")
-	else()
+	elseif(NOT ANDROID)
 		set_target_properties(tfe PROPERTIES OUTPUT_NAME "theforceengine")
 	endif()
 
-	if(UNIX)
+	if(ANDROID)
+		target_compile_definitions(tfe PRIVATE ENGINE_NAME="theforceengine")
+		target_include_directories(tfe PRIVATE ${SDL2_ANDROID_INCLUDE_DIR})
+		target_include_directories(tfe PRIVATE ${SDL2_IMAGE_ANDROID_INCLUDE_DIR})
+		target_include_directories(tfe PRIVATE ${CLIBS_DIR})
+		target_include_directories(tfe PRIVATE ${CLIBS_DIR}/alpha)
+		target_include_directories(tfe PRIVATE ${TOUCH_CONTROLS_DIR})
+		target_link_libraries(tfe PRIVATE SDL2 SDL2_image touchcontrols log GLESv3)
+		target_sources(tfe PRIVATE
+			"${CMAKE_CURRENT_SOURCE_DIR}/TheForceEngine/mobile/game_interface.c"
+			"${CLIBS_DIR}/alpha/android_jni.cpp"
+			"${CLIBS_DIR}/alpha/touch_interface.cpp"
+			"${CLIBS_DIR}/touch_interface_base.cpp"
+			"${CLIBS_DIR}/LogWritter.c"
+			"${CLIBS_DIR}/fts.c"
+			"${CLIBS_DIR}/rand.c"
+		)
+	elseif(UNIX)
 		set(THREADS_PREFER_PTHREAD_FLAG ON)
 		find_package(Threads REQUIRED)
 		find_package(PkgConfig REQUIRED)
@@ -81,8 +102,8 @@ if(ENABLE_TFE)
 					${CMAKE_DL_LIBS}
 					Threads::Threads
 		)
-		
-		target_link_directories(tfe PRIVATE ${SDL2_LIBRARY_DIRS} ${SDL2_IMAGE_LIBRARY_DIRS})		
+
+		target_link_directories(tfe PRIVATE ${SDL2_LIBRARY_DIRS} ${SDL2_IMAGE_LIBRARY_DIRS})
 
 		# set up build directory to be able to run TFE immediately: symlink
 		# the necessary support file directories into the build env.
@@ -115,7 +136,9 @@ if(ENABLE_TFE)
 			set(ENABLE_SYSMIDI 0)
 			message(STATUS "System MIDI Disabled")
 		endif()
-	endif()
+    endif()
+
+
 	if(ENABLE_EDITOR)
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBUILD_EDITOR")
 	endif()
@@ -135,7 +158,7 @@ endif()
 
 ### installation ###
 
-if(ENABLE_TFE)
+if(ENABLE_TFE AND NOT ANDROID)
 	# Main binary
 	install(TARGETS tfe
 		RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"

@@ -32,7 +32,7 @@
 #include <cinttypes>
 #include <time.h>
 #include <sys/types.h>
-#include <sys/timeb.h>
+#include <sys/time.h>
 #include <TFE_DarkForces/hud.h>
 #include <TFE_DarkForces/mission.h>
 #include <TFE_Input/replay.h>
