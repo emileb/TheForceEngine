@@ -29,6 +29,35 @@
 #pragma comment(lib, "sdl2.lib")
 #endif
 
+#ifdef USE_GLES
+#include <dlfcn.h>
+
+static void* LoadGLES2Proc(const char* name)
+{
+    static void* glesLib = NULL;
+
+    if (!glesLib)
+    {
+        int flags = RTLD_LOCAL | RTLD_NOW;
+
+        glesLib = dlopen("libGLESv2_CM.so", flags);
+        if (!glesLib)
+        {
+            glesLib = dlopen("libGLESv2.so", flags);
+        }
+        if (!glesLib)
+        {
+            glesLib = dlopen("libGLESv2.so.2", flags);
+        }
+    }
+
+    void* ret = NULL;
+    ret = dlsym(glesLib, name);
+
+    return ret;
+}
+#endif
+
 namespace TFE_RenderBackend
 {
 	static const f32 c_tallScreenThreshold = 1.32f;	// 4:3 + epsilon.
@@ -124,6 +153,8 @@ namespace TFE_RenderBackend
 		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, true);
 #ifdef USE_GLES
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 #endif
 
 		if (s_isMacOS) {
@@ -152,7 +183,7 @@ namespace TFE_RenderBackend
 		}
 
 #ifdef USE_GLES
-		int glver = gladLoadGLES2Loader((GLADloadproc)SDL_GL_GetProcAddress);
+		int glver = gladLoadGLES2Loader((GLADloadproc)LoadGLES2Proc);
 #else
 		int glver = gladLoadGL((GLADloadfunc)SDL_GL_GetProcAddress);
 #endif
@@ -191,6 +222,10 @@ namespace TFE_RenderBackend
 		{
 			uiScale = 150;
 		}
+
+#if __ANDROID__
+		uiScale = 250;
+#endif
 
     if (s_isMacOS) {
 			// macOS specific setup:

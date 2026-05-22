@@ -500,8 +500,10 @@ bool validatePath()
 int main(int argc, char* argv[])
 {
 	#if INSTALL_CRASH_HANDLER
+#ifndef __ANDROID__
 	TFE_CrashHandler::setProcessExceptionHandlers();
 	TFE_CrashHandler::setThreadExceptionHandlers();
+#endif
 	#endif
 
 	// Paths

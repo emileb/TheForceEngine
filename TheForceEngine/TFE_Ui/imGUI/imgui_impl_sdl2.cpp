@@ -106,6 +106,11 @@
 #endif
 #define SDL_HAS_VULKAN                      SDL_VERSION_ATLEAST(2,0,6)
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO,"TFE", __VA_ARGS__))
+#endif
+
 // SDL Data
 struct ImGui_ImplSDL2_Data
 {
@@ -424,6 +429,7 @@ static bool ImGui_ImplSDL2_Init(SDL_Window* window, SDL_Renderer* renderer, void
         if (strncmp(sdl_backend, global_mouse_whitelist[n], strlen(global_mouse_whitelist[n])) == 0)
             mouse_can_use_global_state = true;
 #endif
+    mouse_can_use_global_state=true;
 
     // Setup backend capabilities flags
     ImGui_ImplSDL2_Data* bd = IM_NEW(ImGui_ImplSDL2_Data)();
@@ -581,7 +587,13 @@ static void ImGui_ImplSDL2_UpdateMouseData()
         {
             int window_x, window_y, mouse_x_global, mouse_y_global;
             SDL_GetGlobalMouseState(&mouse_x_global, &mouse_y_global);
+            int mouseAbsX, mouseAbsY;
+            SDL_GetMouseState(&mouseAbsX, &mouseAbsY);
             SDL_GetWindowPosition(bd->Window, &window_x, &window_y);
+            LOGI("%d %d %d %d, %d %d", window_x, window_y, mouse_x_global, mouse_y_global, mouseAbsX, mouseAbsY);
+
+            mouse_x_global = mouseAbsX;
+            mouse_y_global = mouseAbsY;
             io.AddMousePosEvent((float)(mouse_x_global - window_x), (float)(mouse_y_global - window_y));
         }
     }

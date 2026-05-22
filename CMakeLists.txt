@@ -80,7 +80,7 @@ if(ENABLE_TFE)
 		target_sources(tfe PRIVATE
 			"${CMAKE_CURRENT_SOURCE_DIR}/TheForceEngine/mobile/game_interface.c"
 			"${CLIBS_DIR}/alpha/android_jni.cpp"
-			"${CLIBS_DIR}/alpha/touch_interface.cpp"
+			"${CLIBS_DIR}/alpha/touch_interface_tfe.cpp"
 			"${CLIBS_DIR}/touch_interface_base.cpp"
 			"${CLIBS_DIR}/LogWritter.c"
 			"${CLIBS_DIR}/fts.c"

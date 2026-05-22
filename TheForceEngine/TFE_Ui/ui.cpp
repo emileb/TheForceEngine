@@ -18,7 +18,10 @@ static bool s_guiFrameActive;
 bool init(void* window, void* context, s32 uiScale)
 {
 	glsl_version = strcmp(SDL_GetPlatform(), "Mac OS X") == 0 ? "#version 410" : "#version 130";
-	
+#if USE_GLES
+    glsl_version = "#version 100\n";
+#endif
+
 	s_uiScale = uiScale;
 
 	// Setup Dear ImGui context

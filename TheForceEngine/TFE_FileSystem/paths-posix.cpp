@@ -402,6 +402,9 @@ namespace TFE_Paths
 	// TFE directory.
 	bool isPortableInstall()
 	{
+#ifdef __ANDROID__
+        return true;
+#endif
 		return FileUtil::exists("settings.ini");
 	}
 

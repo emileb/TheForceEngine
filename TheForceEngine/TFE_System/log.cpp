@@ -17,6 +17,11 @@
 	#include <io.h>
 #endif
 
+#ifdef __ANDROID__
+	#include <android/log.h>
+	#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO,"TFE", __VA_ARGS__))
+#endif
+
 namespace TFE_System
 {
 	static FileStream s_logFile;
@@ -74,6 +79,9 @@ namespace TFE_System
 		OutputDebugStringA(s_workStr);
 #else
 		fprintf(stderr, "%s", s_workStr);
+#endif
+#ifdef __ANDROID__
+		LOGI("%s", s_workStr);
 #endif
 	}
 
@@ -135,6 +143,9 @@ namespace TFE_System
 		OutputDebugStringA(s_workStr);
 #else
 		fprintf(stderr, "%s", s_workStr);
+#endif
+#ifdef __ANDROID__
+		LOGI("%s", s_workStr);
 #endif
 		//Critical log messages also act as asserts in the debugger.
 		if (type == LOG_CRITICAL)

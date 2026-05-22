@@ -74,6 +74,6 @@ bool PortableSetAlwaysRun(bool run)
 
 touchscreemode_t PortableGetScreenMode()
 {
-    return TS_GAME;
+    return TS_MENU;
 }
 

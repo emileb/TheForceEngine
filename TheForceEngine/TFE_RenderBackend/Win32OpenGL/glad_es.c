@@ -943,4 +943,3 @@ int gladLoadGLES2Loader(GLADloadproc load) {
 	load_GL_OVR_multiview(load);
 	return GLVersion.major != 0 || GLVersion.minor != 0;
 }
-

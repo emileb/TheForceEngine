@@ -29,7 +29,7 @@ namespace ShaderGL
 
 	static const s32 c_glslVersion[] = { 130, 330, 450 };
 #ifdef USE_GLES
-	static const GLchar* c_glslVersionString[] = { "#version 130\n", "#version 320 es\n", "#version 450\n" };
+	static const GLchar* c_glslVersionString[] = { "#version 320 es\n", "#version 320 es\n", "#version 320 es\n" };
 #else
 	static const GLchar* c_glslVersionString[] = { "#version 130\n", "#version 330\n", "#version 450\n" };
 #endif
@@ -141,7 +141,9 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 		glShaderSource(fragHandle, (GLsizei)parts.size(), parts.data(), nullptr);
 	}
 	glCompileShader(fragHandle);
-	if (!ShaderGL::CheckShader(fragHandle, ShaderGL::s_fragmentFile.c_str())) { return false; }
+    GLint success = 1;
+	if (!ShaderGL::CheckShader(fragHandle, ShaderGL::s_fragmentFile.c_str()))
+        success = 0;
 #else
 	// Desktop GL path (with macOS version override).
 	const GLchar* version_string;

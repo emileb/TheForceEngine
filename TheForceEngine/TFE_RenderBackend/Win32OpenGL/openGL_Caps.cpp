@@ -111,7 +111,7 @@ namespace OpenGL_Caps
 #ifdef USE_GLES
 		else
 		{
-			TFE_System::logWrite(LOG_WARNING, "OpenGL_Caps", "GL_EXT_clip_cull_distance not supported, using SW clipping instead.");
+			//TFE_System::logWrite(LOG_WARNING, "OpenGL_Caps", "GL_EXT_clip_cull_distance not supported, using SW clipping instead.");
 			m_maxClipDistances = 8;
 		}
 #endif
@@ -125,7 +125,7 @@ namespace OpenGL_Caps
 #ifdef USE_GLES
 		else
 		{
-			TFE_System::logWrite(LOG_WARNING, "OpenGL_Caps", "GL_NV_shader_noperspective_interpolation not supported, some rendering may look incorrect.");
+	//		TFE_System::logWrite(LOG_WARNING, "OpenGL_Caps", "GL_NV_shader_noperspective_interpolation not supported, some rendering may look incorrect.");
 		}
 #endif
 
@@ -156,7 +156,7 @@ namespace OpenGL_Caps
 		}
 		else
 		{
-			TFE_System::logWrite(LOG_ERROR, "OpenGL_Caps", "GL_OES_standard_derivatives not supported on this GLES device!");
+			//TFE_System::logWrite(LOG_ERROR, "OpenGL_Caps", "GL_OES_standard_derivatives not supported on this GLES device!");
 		}
 #endif
 	}
