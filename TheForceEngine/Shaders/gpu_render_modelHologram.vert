@@ -1,3 +1,5 @@
+#include "Shaders/clipping.h"
+
 uniform vec3 CameraPos;
 uniform vec3 CameraRight;
 uniform mat3 CameraView;
@@ -13,7 +15,6 @@ uniform sampler2D BasePalette;
 #endif
 
 // Vertex Data
-out float gl_ClipDistance[8];
 in vec3 vtx_pos;
 in vec2 vtx_uv;
 in vec4 vtx_color;
@@ -46,14 +47,15 @@ void main()
 	// Clipping.
 	uint portalOffset, portalCount;
 	unpackPortalInfo(PortalInfo.x, portalOffset, portalCount);
+	Frag_ClipDistance[7] = 1.0; // ensure SW-clip array is explicitly sized (indexed by integral constant) for GLES.
 	for (int i = 0; i < int(portalCount) && i < 8; i++)
 	{
 		vec4 plane = texelFetch(DrawListPlanes, int(portalOffset) + i);
-		gl_ClipDistance[i] = dot(vec4(worldPos.xyz, 1.0), plane);
+		Frag_ClipDistance[i] = dot(vec4(worldPos.xyz, 1.0), plane);
 	}
 	for (int i = int(portalCount); i < 8; i++)
 	{
-		gl_ClipDistance[i] = 1.0;
+		Frag_ClipDistance[i] = 1.0;
 	}
 
 	// Transform from world to view space.

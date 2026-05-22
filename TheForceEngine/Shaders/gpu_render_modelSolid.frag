@@ -1,6 +1,7 @@
 #include "Shaders/filter.h"
 #include "Shaders/textureSampleFunc.h"
 #include "Shaders/lighting.h"
+#include "Shaders/clipping.h"
 
 uniform vec3 CameraPos;
 uniform vec3 CameraDir;
@@ -9,7 +10,7 @@ uniform vec4 TextureOffsets;
 
 in vec2 Frag_Uv;
 in vec3 Frag_WorldPos;
-noperspective in float Frag_Light;
+NOPERSPECTIVE in float Frag_Light;
 flat in float Frag_ModelY;
 #ifdef OPT_TRUE_COLOR
 flat in vec4 Frag_Color;
@@ -28,6 +29,8 @@ out vec4 Out_Color;
 
 void main()
 {
+	Clip();
+
 	#ifdef OPT_TRUE_COLOR
 		vec4 baseColor = Frag_Color;
 	#else
@@ -66,7 +69,7 @@ void main()
 				if (worldAmbient < 31.0 || cameraLightSource > 0.0)
 				{
 					float lightSource = getLightRampValue(z, worldAmbient);
-					if (lightSource > 0)
+					if (lightSource > 0.0)
 					{
 						light += lightSource;
 					}

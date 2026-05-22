@@ -1,3 +1,5 @@
+#include "Shaders/clipping.h"
+
 uniform vec3 CameraPos;
 uniform mat3 CameraView;
 uniform mat4 CameraProj;
@@ -9,7 +11,6 @@ uniform usamplerBuffer DrawListData;
 uniform samplerBuffer  DrawListPlanes;	// Top and Bottom planes for each portal.
 
 // in int gl_VertexID;
-out float gl_ClipDistance[8];
 flat out vec4 Frag_Uv;
 out vec3 Frag_Pos;
 out vec4 Texture_Data;
@@ -124,7 +125,7 @@ void main()
 					// Scale when looking up by view[1][1] which is 1.0 when looking straight and tends toward 0.0 as looking up or down.
 					d /= CameraView[1].y;
 					// Clamp to the maximum top.
-					y0 = CameraPos.y - min(100, d);
+					y0 = CameraPos.y - min(100.0, d);
 				}
 				else
 				{
@@ -293,14 +294,15 @@ void main()
 	#endif  // !SECTOR_TRANSPARENT_PASS
 
 	// Clipping.
+	Frag_ClipDistance[7] = 1.0; // ensure SW-clip array is explicitly sized (indexed by integral constant) for GLES.
 	for (int i = 0; i < int(portalCount) && i < 8; i++)
 	{
 		vec4 plane = texelFetch(DrawListPlanes, int(portalOffset) + i);
-		gl_ClipDistance[i] = dot(vec4(vtx_pos.xyz, 1.0), plane);
+		Frag_ClipDistance[i] = dot(vec4(vtx_pos.xyz, 1.0), plane);
 	}
 	for (int i = int(portalCount); i < 8; i++)
 	{
-		gl_ClipDistance[i] = 1.0;
+		Frag_ClipDistance[i] = 1.0;
 	}
 	
 	Frag_Pos = vtx_pos - CameraPos;

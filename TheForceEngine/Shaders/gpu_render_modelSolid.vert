@@ -1,3 +1,5 @@
+#include "Shaders/clipping.h"
+
 uniform sampler2D Colormap;
 #include "Shaders/lighting.h"
 #ifdef OPT_TRUE_COLOR
@@ -23,10 +25,9 @@ in vec3 vtx_nrm;
 in vec2 vtx_uv;
 in vec4 vtx_color;
 
-out float gl_ClipDistance[8];
 out vec2 Frag_Uv;
 out vec3 Frag_WorldPos;
-noperspective out float Frag_Light;
+NOPERSPECTIVE out float Frag_Light;
 flat out float Frag_ModelY;
 #ifdef OPT_TRUE_COLOR
 flat out vec4 Frag_Color;
@@ -73,14 +74,15 @@ void main()
 	// Clipping.
 	uint portalOffset, portalCount;
 	unpackPortalInfo(PortalInfo.x, portalOffset, portalCount);
+	Frag_ClipDistance[7] = 1.0; // ensure SW-clip array is explicitly sized (indexed by integral constant) for GLES.
 	for (int i = 0; i < int(portalCount) && i < 8; i++)
 	{
 		vec4 plane = texelFetch(DrawListPlanes, int(portalOffset) + i);
-		gl_ClipDistance[i] = dot(vec4(worldPos.xyz, 1.0), plane);
+		Frag_ClipDistance[i] = dot(vec4(worldPos.xyz, 1.0), plane);
 	}
 	for (int i = int(portalCount); i < 8; i++)
 	{
-		gl_ClipDistance[i] = 1.0;
+		Frag_ClipDistance[i] = 1.0;
 	}
 
 	// Lighting
@@ -108,7 +110,7 @@ void main()
 			if (worldAmbient < 31.0 || cameraLightSource > 0.0)
 			{
 				float lightSource = getLightRampValue(z, worldAmbient);
-				if (lightSource > 0)
+				if (lightSource > 0.0)
 				{
 					light += lightSource;
 				}

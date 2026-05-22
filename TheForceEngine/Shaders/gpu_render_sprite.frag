@@ -1,6 +1,7 @@
 #include "Shaders/filter.h"
 #include "Shaders/textureSampleFunc.h"
 #include "Shaders/lighting.h"
+#include "Shaders/clipping.h"
 
 uniform vec3 CameraPos;
 uniform vec3 CameraDir;
@@ -10,8 +11,6 @@ uniform vec2 SkyParallax;
 
 in vec2 Frag_Uv;
 in vec3 Frag_Pos;
-flat in vec3 Frag_Lighting;
-
 flat in int Frag_TextureId;
 flat in vec4 Texture_Data;
 #ifdef OPT_BLOOM
@@ -23,6 +22,8 @@ flat in vec4 Texture_Data;
 
 void main()
 {
+	Clip();
+
     vec3 cameraRelativePos = Frag_Pos;
 	float light = 31.0;
 
@@ -49,7 +50,7 @@ void main()
 			if (worldAmbient < 31.0 || cameraLightSource != 0.0)
 			{
 				float lightSource = getLightRampValue(z, worldAmbient);
-				if (lightSource > 0)
+				if (lightSource > 0.0)
 				{
 					light += lightSource;
 				}

@@ -1,3 +1,5 @@
+#include "Shaders/clipping.h"
+
 uniform sampler2D Palette;
 #ifdef OPT_TRUE_COLOR
 flat in vec3 Frag_Color;
@@ -14,6 +16,8 @@ out vec4 Out_Color;
 
 void main()
 {
+	Clip();
+
 	#ifdef OPT_TRUE_COLOR
 		Out_Color.rgb = Frag_Color;
 	#else

@@ -2,6 +2,9 @@
 #include <TFE_System/system.h>
 #include <TFE_RenderBackend/renderBackend.h>
 #include "gl.h"
+#ifdef USE_GLES
+#include "openGL_Caps.h"
+#endif
 #include <vector>
 
 namespace TFE_RenderState
@@ -220,6 +223,12 @@ namespace TFE_RenderState
 	
 	void enableClipPlanes(s32 count)
 	{
+#ifdef USE_GLES
+		// Hardware clip planes only exist via GL_EXT_clip_cull_distance on GLES.
+		// When unsupported, the shaders fall back to software clipping (see clipping.h),
+		// so we skip the GL state changes entirely to avoid GL_INVALID_ENUM.
+		if (!OpenGL_Caps::supportsClipping()) { return; }
+#endif
 		if (s_clipPlaneCount != count)
 		{
 			// Disable unused planes.

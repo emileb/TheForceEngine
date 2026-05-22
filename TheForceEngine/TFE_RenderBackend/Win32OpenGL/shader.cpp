@@ -59,6 +59,10 @@ namespace ShaderGL
 	}
 }
 
+// Stage defines so shaders (e.g. clipping.h) can distinguish vertex vs fragment context.
+static const char* s_vertexShaderDefine   = "#define VERTEX_SHADER\n";
+static const char* s_fragmentShaderDefine = "#define FRAGMENT_SHADER\n";
+
 #ifdef USE_GLES
 // Extension and precision strings injected into GLES shaders.
 static const char* s_ext_OES_standard_derivatives  = "#extension GL_OES_standard_derivatives : enable\n";
@@ -114,6 +118,7 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 			parts.push_back(s_no_noperspective_define);
 		}
 		parts.push_back(s_defaultPrecisions);
+		parts.push_back(s_vertexShaderDefine);
 		if (defineString) parts.push_back(defineString);
 		parts.push_back(vertexShaderGLSL);
 		glShaderSource(vertHandle, (GLsizei)parts.size(), parts.data(), nullptr);
@@ -136,6 +141,7 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 			parts.push_back(s_no_noperspective_define);
 		}
 		parts.push_back(s_defaultPrecisions);
+		parts.push_back(s_fragmentShaderDefine);
 		if (defineString) parts.push_back(defineString);
 		parts.push_back(fragmentShaderGLSL);
 		glShaderSource(fragHandle, (GLsizei)parts.size(), parts.data(), nullptr);
@@ -154,9 +160,9 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 		version_string = ShaderGL::c_glslVersionString[m_shaderVersion];
 	}
 
-	const GLchar *vertex_shader_with_version[3] = { version_string, defineString ? defineString : "", vertexShaderGLSL };
+	const GLchar *vertex_shader_with_version[6] = { version_string, s_defaultPrecisions, s_noperspective_define, s_vertexShaderDefine, defineString ? defineString : "", vertexShaderGLSL };
 	u32 vertHandle = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertHandle, 3, vertex_shader_with_version, NULL);
+	glShaderSource(vertHandle, 6, vertex_shader_with_version, NULL);
 	glCompileShader(vertHandle);
 
 	GLint success = 0;
@@ -169,9 +175,9 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 		return false;
 	}
 
-	const GLchar *fragment_shader_with_version[3] = { version_string, defineString ? defineString : "", fragmentShaderGLSL };
+	const GLchar *fragment_shader_with_version[6] = { version_string, s_defaultPrecisions, s_noperspective_define, s_fragmentShaderDefine, defineString ? defineString : "", fragmentShaderGLSL };
 	u32 fragHandle = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragHandle, 3, fragment_shader_with_version, NULL);
+	glShaderSource(fragHandle, 6, fragment_shader_with_version, NULL);
 	glCompileShader(fragHandle);
 	glGetShaderiv(fragHandle, GL_COMPILE_STATUS, &success);
 	if (!success)
