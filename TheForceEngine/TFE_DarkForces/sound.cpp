@@ -116,7 +116,7 @@ namespace TFE_DarkForces
 		if (sound)
 		{
 			if (refCount) { sound->refCount++; }
-			return soundInstance((SoundSourceId)sound, 0);
+			return soundInstance((SoundSourceId)sound & c_soundIdMask, 0);
 		}
 		return NULL_SOUND;
 	}
@@ -187,7 +187,7 @@ namespace TFE_DarkForces
 			if (!strcasecmp(fileName, sound->name))
 			{
 				sound->refCount++;
-				return soundInstance((SoundSourceId)sound, 0);
+				return soundInstance((SoundSourceId)sound & c_soundIdMask, 0);
 			}
 			sound = (GameSound*)allocator_getNext(sound_state.gameSoundList);
 		}
@@ -199,7 +199,7 @@ namespace TFE_DarkForces
 			sound = (GameSound*)allocator_newItem(sound_state.gameSoundList);
 			if (!sound)
 				return NULL_SOUND;
-			sound->id = (SoundSourceId)sound;
+			sound->id = (SoundSourceId)sound & c_soundIdMask;
 			sound->time = s_curTick;
 			sound->data = data;
 			strncpy(sound->name, fileName, 13);
