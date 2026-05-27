@@ -381,8 +381,82 @@ namespace TFE_RenderBackend
 		TFE_ZONE_END(systemUi);
 
 		TFE_ZONE_BEGIN(swapGpu, "GPU Swap Buffers");
+#ifdef __ANDROID__
+		// On Android the host overlays touch controls between SDL_GL_SwapWindow's
+		// EGL swap and our next frame, which mutates global GL state (program,
+		// bound textures/buffers, blend/depth, viewport, FBO, ...). Snapshot the
+		// state we depend on, swap, then restore so the next frame doesn't render
+		// against the overlay's leftover bindings.
+		GLint prevProgram = 0;
+		GLint prevActiveTex = GL_TEXTURE0;
+		GLint prevVAO = 0;
+		GLint prevArrayBuf = 0;
+		GLint prevElementBuf = 0;
+		GLint prevDrawFBO = 0;
+		GLint prevReadFBO = 0;
+		GLint prevViewport[4] = { 0, 0, 0, 0 };
+		GLint prevScissor[4] = { 0, 0, 0, 0 };
+		GLboolean prevBlend = GL_FALSE;
+		GLboolean prevDepthTest = GL_FALSE;
+		GLboolean prevCullFace = GL_FALSE;
+		GLboolean prevScissorTest = GL_FALSE;
+		GLboolean prevDepthMask = GL_TRUE;
+		GLboolean prevColorMask[4] = { GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE };
+		const s32 c_savedTexUnits = 4;
+		GLint prevTexBindings[c_savedTexUnits] = { 0 };
+
+		glGetIntegerv(GL_CURRENT_PROGRAM, &prevProgram);
+		glGetIntegerv(GL_ACTIVE_TEXTURE, &prevActiveTex);
+		glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVAO);
+		glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prevArrayBuf);
+		glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &prevElementBuf);
+		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prevDrawFBO);
+		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prevReadFBO);
+		glGetIntegerv(GL_VIEWPORT, prevViewport);
+		glGetIntegerv(GL_SCISSOR_BOX, prevScissor);
+		prevBlend       = glIsEnabled(GL_BLEND);
+		prevDepthTest   = glIsEnabled(GL_DEPTH_TEST);
+		prevCullFace    = glIsEnabled(GL_CULL_FACE);
+		prevScissorTest = glIsEnabled(GL_SCISSOR_TEST);
+		glGetBooleanv(GL_DEPTH_WRITEMASK, &prevDepthMask);
+		glGetBooleanv(GL_COLOR_WRITEMASK, prevColorMask);
+		for (s32 i = 0; i < c_savedTexUnits; i++)
+		{
+			glActiveTexture(GL_TEXTURE0 + i);
+			glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTexBindings[i]);
+		}
+		// Clear any pending error before swap.
+		(void)glGetError();
+
+		SDL_GL_SwapWindow((SDL_Window*)m_window);
+
+		// Restore in reverse order: bindings first, then enables, then masks.
+		for (s32 i = 0; i < c_savedTexUnits; i++)
+		{
+			glActiveTexture(GL_TEXTURE0 + i);
+			glBindTexture(GL_TEXTURE_2D, (GLuint)prevTexBindings[i]);
+		}
+		glActiveTexture((GLenum)prevActiveTex);
+		glBindBuffer(GL_ARRAY_BUFFER, (GLuint)prevArrayBuf);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, (GLuint)prevElementBuf);
+		glBindVertexArray((GLuint)prevVAO);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, (GLuint)prevDrawFBO);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, (GLuint)prevReadFBO);
+		glUseProgram((GLuint)prevProgram);
+		glViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
+		glScissor(prevScissor[0], prevScissor[1], prevScissor[2], prevScissor[3]);
+		if (prevBlend)       glEnable(GL_BLEND);       else glDisable(GL_BLEND);
+		if (prevDepthTest)   glEnable(GL_DEPTH_TEST);  else glDisable(GL_DEPTH_TEST);
+		if (prevCullFace)    glEnable(GL_CULL_FACE);   else glDisable(GL_CULL_FACE);
+		if (prevScissorTest) glEnable(GL_SCISSOR_TEST);else glDisable(GL_SCISSOR_TEST);
+		glDepthMask(prevDepthMask);
+		glColorMask(prevColorMask[0], prevColorMask[1], prevColorMask[2], prevColorMask[3]);
+		// Discard any GL errors the overlay may have raised.
+		(void)glGetError();
+#else
 		// Update the window.
 		SDL_GL_SwapWindow((SDL_Window*)m_window);
+#endif
 		TFE_ZONE_END(swapGpu);
 
 		if (s_screenshotQueued)
