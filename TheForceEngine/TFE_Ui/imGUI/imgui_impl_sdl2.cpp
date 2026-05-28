@@ -590,7 +590,7 @@ static void ImGui_ImplSDL2_UpdateMouseData()
             int mouseAbsX, mouseAbsY;
             SDL_GetMouseState(&mouseAbsX, &mouseAbsY);
             SDL_GetWindowPosition(bd->Window, &window_x, &window_y);
-            LOGI("%d %d %d %d, %d %d", window_x, window_y, mouse_x_global, mouse_y_global, mouseAbsX, mouseAbsY);
+            //LOGI("%d %d %d %d, %d %d", window_x, window_y, mouse_x_global, mouse_y_global, mouseAbsX, mouseAbsY);
 
             mouse_x_global = mouseAbsX;
             mouse_y_global = mouseAbsY;
