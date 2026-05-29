@@ -33,6 +33,11 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/time.h>
+
+#ifdef __ANDROID__
+// Defined in TheForceEngine/mobile/game_interface.cpp.
+extern "C" void PortableTickActions();
+#endif
 #include <TFE_DarkForces/hud.h>
 #include <TFE_DarkForces/mission.h>
 #include <TFE_Input/replay.h>
@@ -700,6 +705,12 @@ int main(int argc, char* argv[])
 			inputMapping_endFrame();
 			continue;
 		}
+
+#ifdef __ANDROID__
+		// Apply the touch-UI button state (mobile/game_interface.cpp) on top of the
+		// per-action state table that inputMapping_handleInputs() just populated.
+		PortableTickActions();
+#endif
 
 		// Can we save?
 		TFE_FrontEndUI::setCanSave(s_curGame ? s_curGame->canSave() : false);

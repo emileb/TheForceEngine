@@ -1,12 +1,28 @@
 #include "SDL.h"
-#include "game_interface.h"
 
+// TFE headers MUST be included before game_interface.h.
+// TFE_Input/inputEnum.h defines `enum MouseButton`, while
+// Clibs_OpenTouch/game_interface.h declares `void MouseButton(int, int)` — same
+// identifier, different kinds. C++ lets them coexist only if the type name is
+// established first; otherwise the function declaration hides the enum and any
+// later use of `MouseButton` as a type fails to compile.
 #include <TFE_FrontEndUI/frontEndUi.h>
 #include <TFE_DarkForces/darkForcesMain.h>
 #include <TFE_DarkForces/GameUI/escapeMenu.h>
 #include <TFE_DarkForces/GameUI/pda.h>
+#include <TFE_Input/inputMapping.h>
+
+#include "game_interface.h"
 
 extern int main(int argc, char *argv[]);
+
+// PortableAction stores button state into these arrays from the touch-UI thread.
+// PortableTickActions(), called from the main loop each frame, then injects them
+// into TFE_Input's per-action state table. We go straight to the action layer rather
+// than synthesising SDL key events so the touch buttons keep working even if the
+// user remaps the underlying keyboard binds.
+static volatile uint8_t s_androidHeld   [TFE_Input::IA_COUNT] = { 0 };
+static volatile uint8_t s_androidPressed[TFE_Input::IA_COUNT] = { 0 };
 
 // Touch movement axes. Read out via PortableGetMove() once per frame from the
 // player code hook in TFE_DarkForces/player.cpp.
@@ -45,8 +61,102 @@ int PortableKeyEvent(int state, int code, int unitcode)
     return 0;
 }
 
+// Map a PORT_ACT_* code to a TFE_Input InputAction. Returns IA_COUNT when no
+// mapping exists (caller must skip).
+static int actionForPortAct(int port_act)
+{
+    using namespace TFE_Input;
+    switch (port_act)
+    {
+        // Movement.
+        case PORT_ACT_FWD:        return IADF_FORWARD;
+        case PORT_ACT_BACK:       return IADF_BACKWARD;
+        case PORT_ACT_MOVE_LEFT:  return IADF_STRAFE_LT;
+        case PORT_ACT_MOVE_RIGHT: return IADF_STRAFE_RT;
+        case PORT_ACT_LEFT:       return IADF_TURN_LT;
+        case PORT_ACT_RIGHT:      return IADF_TURN_RT;
+        case PORT_ACT_LOOK_UP:    return IADF_LOOK_UP;
+        case PORT_ACT_LOOK_DOWN:  return IADF_LOOK_DN;
+
+        // Modifiers.
+        case PORT_ACT_SPEED:      return IADF_RUN;
+        case PORT_ACT_JUMP:
+        case PORT_ACT_UP:         return IADF_JUMP;
+        case PORT_ACT_CROUCH:
+        case PORT_ACT_DOWN:       return IADF_CROUCH;
+
+        // Interaction.
+        case PORT_ACT_USE:        return IADF_USE;
+        case PORT_ACT_ATTACK:     return IADF_PRIMARY_FIRE;
+        case PORT_ACT_ALT_ATTACK: return IADF_SECONDARY_FIRE;
+
+        // Weapon cycling.
+        case PORT_ACT_NEXT_WEP:   return IADF_CYCLEWPN_NEXT;
+        case PORT_ACT_PREV_WEP:   return IADF_CYCLEWPN_PREV;
+
+        // DF screens.
+        case PORT_ACT_MAP:        return IADF_AUTOMAP;
+        case PORT_ACT_DATAPAD:    return IADF_PDA_TOGGLE;
+        case PORT_ACT_CONSOLE:    return IAS_CONSOLE;
+
+        // Save / load.
+        case PORT_ACT_QUICKSAVE:  return IAS_QUICK_SAVE;
+        case PORT_ACT_QUICKLOAD:  return IAS_QUICK_LOAD;
+
+        default:                  return IA_COUNT;
+    }
+}
+
+// Called on press (state == 1) and release (state == 0) from the touch-UI thread.
+// We don't gate on PortableGetScreenMode() — a release that arrives after the screen
+// flipped to TS_MENU still needs to clear our held state, otherwise the action would
+// stay stuck once we returned to gameplay.
 void PortableAction(int state, int action)
 {
+    const int ia = actionForPortAct(action);
+    if (ia >= TFE_Input::IA_COUNT) { return; }
+
+    if (state)
+    {
+        if (!s_androidHeld[ia])
+        {
+            s_androidPressed[ia] = 1;   // one-shot for "press transition" semantics
+        }
+        s_androidHeld[ia] = 1;
+    }
+    else
+    {
+        s_androidHeld[ia] = 0;
+    }
+}
+
+// Called once per frame from the main loop (TFE main.cpp) after the normal input
+// pipeline has populated s_actions[] from real keyboard / mouse / controller state.
+// We OR our touch state on top so the touch buttons take effect this frame.
+//
+// Per-frame because TFE_Input::inputMapping_endFrame() wipes s_actions[] to STATE_UP
+// at end of every frame, then inputMapping_updateInput() refills it from live key
+// state — our held actions have no live key behind them, so they need re-applying.
+void PortableTickActions()
+{
+    using namespace TFE_Input;
+    for (int i = 0; i < IA_COUNT; ++i)
+    {
+        if (s_androidPressed[i])
+        {
+            inputMapping_setStatePress((InputAction)i);
+            s_androidPressed[i] = 0;
+        }
+        else if (s_androidHeld[i])
+        {
+            // Only fill the slot if no real input already claimed it this frame.
+            // Avoids downgrading a real STATE_PRESSED to STATE_DOWN.
+            if (inputMapping_getActionState((InputAction)i) == STATE_UP)
+            {
+                inputMapping_setStateDown((InputAction)i);
+            }
+        }
+    }
 }
 
 static float clamp_unit(float v)
