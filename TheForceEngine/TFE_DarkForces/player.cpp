@@ -36,6 +36,12 @@ namespace TFE_Jedi
 	extern JBool s_flatLighting;
 }
 
+#ifdef __ANDROID__
+// Defined in mobile/game_interface.cpp; reads the latest touch-stick values
+// pushed in from the Java layer.
+extern "C" void PortableGetMove(float* fwd, float* strafe);
+#endif
+
 namespace TFE_DarkForces
 {
 	///////////////////////////////////////////
@@ -1962,6 +1968,29 @@ namespace TFE_DarkForces
 					s_strafeSpd = max(speed, s_strafeSpd);
 				}
 			}
+
+#ifdef __ANDROID__
+			// Touch-screen movement injection. Pull the latest normalised stick values
+			// from mobile/game_interface.cpp via PortableGetMove(), then fold them in
+			// with the same min/max contention pattern as the analog axes.
+			if (!s_disablePlayerMovement)
+			{
+				float touchFwd = 0.0f, touchStrafe = 0.0f;
+				PortableGetMove(&touchFwd, &touchStrafe);
+				if (touchFwd != 0.0f)
+				{
+					fixed16_16 speed = mul16(mul16(PLAYER_FORWARD_SPEED, s_deltaTime), floatToFixed16(clamp(touchFwd, -1.0f, 1.0f)));
+					if (speed < 0) { s_forwardSpd = min(speed, s_forwardSpd); }
+					else           { s_forwardSpd = max(speed, s_forwardSpd); }
+				}
+				if (touchStrafe != 0.0f)
+				{
+					fixed16_16 speed = mul16(mul16(PLAYER_STRAFE_SPEED, s_deltaTime), floatToFixed16(clamp(touchStrafe, -1.0f, 1.0f)));
+					if (speed < 0) { s_strafeSpd = min(speed, s_strafeSpd); }
+					else           { s_strafeSpd = max(speed, s_strafeSpd); }
+				}
+			}
+#endif
 		}
 
 		if (inputMapping_getActionState(IADF_USE))
