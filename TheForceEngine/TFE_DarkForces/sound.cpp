@@ -45,7 +45,7 @@ namespace TFE_DarkForces
 
 	// SoundID is structed as:
 	// <- Higher .... Lower ->
-	// 1-bit: always zero (this is the midi flag bit) | 15-bits: instance | 48-bits: pointer offset
+	// 1-bit: always zero (this is the midi flag bit) | 15-bits: instance | 48-bits: 1-based allocator index (0 == NULL_SOUND)
 	static const s64 c_soundIdMask = 0xffffffffffffll;	// (1 << 48) - 1
 	static const s64 c_soundInstanceShift = 48ll;
 	static const s32 c_soundInstanceMask = 0x7fff;
@@ -116,7 +116,7 @@ namespace TFE_DarkForces
 		if (sound)
 		{
 			if (refCount) { sound->refCount++; }
-			return soundInstance((SoundSourceId)sound, 0);
+			return soundInstance((SoundSourceId)(allocator_getIndex(sound_state.gameSoundList, sound) + 1), 0);
 		}
 		return NULL_SOUND;
 	}
@@ -187,7 +187,7 @@ namespace TFE_DarkForces
 			if (!strcasecmp(fileName, sound->name))
 			{
 				sound->refCount++;
-				return soundInstance((SoundSourceId)sound, 0);
+				return soundInstance((SoundSourceId)(allocator_getIndex(sound_state.gameSoundList, sound) + 1), 0);
 			}
 			sound = (GameSound*)allocator_getNext(sound_state.gameSoundList);
 		}
@@ -199,7 +199,7 @@ namespace TFE_DarkForces
 			sound = (GameSound*)allocator_newItem(sound_state.gameSoundList);
 			if (!sound)
 				return NULL_SOUND;
-			sound->id = (SoundSourceId)sound;
+			sound->id = (SoundSourceId)(allocator_getIndex(sound_state.gameSoundList, sound) + 1);
 			sound->time = s_curTick;
 			sound->data = data;
 			strncpy(sound->name, fileName, 13);
@@ -441,8 +441,14 @@ namespace TFE_DarkForces
 
 	GameSound* getSoundPtr(SoundSourceId id)
 	{
-		assert((id & c_soundIdMask) >= 0);
-		return (GameSound*)((u8*)(id & c_soundIdMask));
+		s64 index = (id & c_soundIdMask) - 1;
+		if (index < 0) { return nullptr; }
+		// allocator_getByIndex mutates iter state; preserve it so callers
+		// iterating gameSoundList aren't disturbed by an id lookup.
+		allocator_saveIter(sound_state.gameSoundList);
+		GameSound* sound = (GameSound*)allocator_getByIndex(sound_state.gameSoundList, (s32)index);
+		allocator_restoreIter(sound_state.gameSoundList);
+		return sound;
 	}
 
 	u8* sound_getResource(SoundEffectId id)
