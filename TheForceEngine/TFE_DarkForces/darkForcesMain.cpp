@@ -455,6 +455,21 @@ namespace TFE_DarkForces
 		return s_runGameState.state == GSTATE_MISSION;
 	}
 
+#ifdef __ANDROID__
+	DfSubState darkforces_getSubState()
+	{
+		switch (s_runGameState.state)
+		{
+			case GSTATE_STARTUP_CUTSCENES: return DF_SUB_STARTUP_CUTSCENE;
+			case GSTATE_AGENT_MENU:        return DF_SUB_AGENT_MENU;
+			case GSTATE_CUTSCENE:          return DF_SUB_CUTSCENE;
+			case GSTATE_BRIEFING:          return DF_SUB_BRIEFING;
+			case GSTATE_MISSION:           return DF_SUB_MISSION;
+			default:                       return DF_SUB_STARTUP_CUTSCENE;
+		}
+	}
+#endif
+
 	void DarkForces::getLevelName(char* name)
 	{
 		const char* levelName = agent_getLevelDisplayName();

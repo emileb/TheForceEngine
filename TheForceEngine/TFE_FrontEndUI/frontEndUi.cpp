@@ -452,6 +452,13 @@ namespace TFE_FrontEndUI
 		return s_appState == APP_STATE_MENU && s_subUI == FEUI_NONE;
 	}
 
+#ifdef __ANDROID__
+	AppState getAppState()
+	{
+		return s_appState;
+	}
+#endif
+
 	bool toggleConsole()
 	{
 		s_consoleActive = !s_consoleActive;

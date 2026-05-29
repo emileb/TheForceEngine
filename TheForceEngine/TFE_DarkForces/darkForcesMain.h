@@ -30,4 +30,16 @@ namespace TFE_DarkForces
 	void enableCutscenes(JBool enable);
 	bool getCutscenesEnabled();
 	void startMissionFromSave(s32 levelIndex);
+
+#ifdef __ANDROID__
+	enum DfSubState
+	{
+		DF_SUB_STARTUP_CUTSCENE = 0,
+		DF_SUB_AGENT_MENU,
+		DF_SUB_CUTSCENE,
+		DF_SUB_BRIEFING,
+		DF_SUB_MISSION,
+	};
+	DfSubState darkforces_getSubState();
+#endif
 }

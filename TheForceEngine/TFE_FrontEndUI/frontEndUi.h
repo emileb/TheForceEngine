@@ -41,6 +41,9 @@ namespace TFE_FrontEndUI
 	IGame* getCurrentGame();
 
 	void setAppState(AppState state);
+#ifdef __ANDROID__
+	AppState getAppState();
+#endif
 	void enableConfigMenu();
 	AppState menuReturn();
 	void setMenuReturnState(AppState state);
