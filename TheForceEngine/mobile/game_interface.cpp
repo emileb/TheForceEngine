@@ -1,4 +1,5 @@
 #include "SDL.h"
+#include "SDL_scancode.h"
 
 // TFE headers MUST be included before game_interface.h.
 // TFE_Input/inputEnum.h defines `enum MouseButton`, while
@@ -13,6 +14,12 @@
 #include <TFE_Input/inputMapping.h>
 
 #include "game_interface.h"
+
+// SDL's internal keyboard injection — same trick iortcw / gzdoom use. Thread-safe:
+// it pushes into the SDL event queue under SDL's internal lock. Used here only for
+// menu navigation keys (UP/DOWN/LEFT/RIGHT/RETURN/ESC), which are hardcoded by both
+// ImGui and the DOS-style DF menus and never user-remappable.
+extern "C" int SDL_SendKeyboardKey(Uint8 state, SDL_Scancode scancode);
 
 extern int main(int argc, char *argv[]);
 
@@ -52,12 +59,24 @@ void PortableInit(int argc, const char **argv)
     main(argc, (char **)argv);
 }
 
+// Android system Back button → synthesize an ESC press + release. TFE's main loop
+// will see both events from the SDL queue this frame; keyPressed(KEY_ESCAPE) latches
+// on the down event so escape-menu / close-overlay logic fires normally.
 void PortableBackButton(void)
 {
+    LOGI("PortableBackButton");
+    SDL_SendKeyboardKey(SDL_PRESSED,  SDL_SCANCODE_ESCAPE);
+    SDL_SendKeyboardKey(SDL_RELEASED, SDL_SCANCODE_ESCAPE);
 }
 
+// Hardware keyboard pass-through (physical USB / Bluetooth keyboard via the touch
+// layer). `code` is already an SDL_Scancode — the touch layer translates Android
+// KeyEvent codes before calling us. SDL injection is the right path here because
+// these are real key events that the user expects to behave exactly like a desktop
+// keyboard, including TFE's normal key→action remapping.
 int PortableKeyEvent(int state, int code, int unitcode)
 {
+    SDL_SendKeyboardKey(state ? SDL_PRESSED : SDL_RELEASED, (SDL_Scancode)code);
     return 0;
 }
 
@@ -103,24 +122,31 @@ static int actionForPortAct(int port_act)
         case PORT_ACT_QUICKSAVE:  return IAS_QUICK_SAVE;
         case PORT_ACT_QUICKLOAD:  return IAS_QUICK_LOAD;
 
+        // Weapon select. DF binds digits 1..9 → weapons 1..9 and 0 → weapon 10.
+        case PORT_ACT_WEAP0:      return IADF_WEAPON_10;
+        case PORT_ACT_WEAP1:      return IADF_WEAPON_1;
+        case PORT_ACT_WEAP2:      return IADF_WEAPON_2;
+        case PORT_ACT_WEAP3:      return IADF_WEAPON_3;
+        case PORT_ACT_WEAP4:      return IADF_WEAPON_4;
+        case PORT_ACT_WEAP5:      return IADF_WEAPON_5;
+        case PORT_ACT_WEAP6:      return IADF_WEAPON_6;
+        case PORT_ACT_WEAP7:      return IADF_WEAPON_7;
+        case PORT_ACT_WEAP8:      return IADF_WEAPON_8;
+        case PORT_ACT_WEAP9:      return IADF_WEAPON_9;
+
         default:                  return IA_COUNT;
     }
 }
 
-// Called on press (state == 1) and release (state == 0) from the touch-UI thread.
-// We don't gate on PortableGetScreenMode() — a release that arrives after the screen
-// flipped to TS_MENU still needs to clear our held state, otherwise the action would
-// stay stuck once we returned to gameplay.
-void PortableAction(int state, int action)
+// Touch-thread: press = state non-zero, release = state zero. Same logic the
+// gameplay action path uses — split out for reuse by the menu / weapon branches.
+static void applyActionState(int state, int ia)
 {
-    const int ia = actionForPortAct(action);
-    if (ia >= TFE_Input::IA_COUNT) { return; }
-
     if (state)
     {
         if (!s_androidHeld[ia])
         {
-            s_androidPressed[ia] = 1;   // one-shot for "press transition" semantics
+            s_androidPressed[ia] = 1;
         }
         s_androidHeld[ia] = 1;
     }
@@ -128,6 +154,55 @@ void PortableAction(int state, int action)
     {
         s_androidHeld[ia] = 0;
     }
+}
+
+// Helper for menu-navigation key injection (non-remappable keys only — see header
+// comment on SDL_SendKeyboardKey).
+static void sendKey(int state, SDL_Scancode scancode)
+{
+    SDL_SendKeyboardKey(state ? SDL_PRESSED : SDL_RELEASED, scancode);
+}
+
+// Touch-UI thread entry point. Same branching shape as iortcw's PortableAction:
+//   1. menu/blank → arrow keys / Enter / ESC via SDL injection; mouse buttons for
+//      ImGui clicks. These keys aren't user-remappable so SDL events are safe.
+//   2. gameplay → action injection (handled by actionForPortAct + applyActionState),
+//      bypassing the keyboard layer so user remapping doesn't break the touch UI.
+// Releases are never gated on screen mode so a held action can't get stuck if the
+// screen flipped to TS_MENU between press and release.
+void PortableAction(int state, int action)
+{
+    const touchscreemode_t mode = PortableGetScreenMode();
+    const bool menuMode = (mode == TS_MENU || mode == TS_BLANK);
+
+    // ---- Menu / blank screen: navigation via SDL keys, mouse via injection ----
+    if (menuMode)
+    {
+        switch (action)
+        {
+            case PORT_ACT_MENU_UP:      sendKey(state, SDL_SCANCODE_UP);      return;
+            case PORT_ACT_MENU_DOWN:    sendKey(state, SDL_SCANCODE_DOWN);    return;
+            case PORT_ACT_MENU_LEFT:    sendKey(state, SDL_SCANCODE_LEFT);    return;
+            case PORT_ACT_MENU_RIGHT:   sendKey(state, SDL_SCANCODE_RIGHT);   return;
+            case PORT_ACT_MENU_SELECT:  sendKey(state, SDL_SCANCODE_RETURN);  return;
+            case PORT_ACT_MENU_BACK:
+            case PORT_ACT_MENU_ABORT:
+            case PORT_ACT_MENU_SHOW:    sendKey(state, SDL_SCANCODE_ESCAPE);  return;
+            case PORT_ACT_MENU_CONFIRM: sendKey(state, SDL_SCANCODE_Y);       return;
+
+            case PORT_ACT_MOUSE_LEFT:   MouseButton(state, BUTTON_PRIMARY);   return;
+            case PORT_ACT_MOUSE_RIGHT:  MouseButton(state, BUTTON_SECONDARY); return;
+        }
+        // Fall through: a release of a gameplay action that the player started
+        // before opening a menu still needs to clear its held state (handled
+        // below). Presses of gameplay actions while in menu also queue safely —
+        // DF only reads them once we're back in mission mode.
+    }
+
+    // ---- Gameplay (and queued release) ----
+    const int ia = actionForPortAct(action);
+    if (ia >= TFE_Input::IA_COUNT) { return; }
+    applyActionState(state, ia);
 }
 
 // Called once per frame from the main loop (TFE main.cpp) after the normal input
