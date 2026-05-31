@@ -15,6 +15,7 @@ enum CapabilityFlags
 	CAP_ANISO = (1 << 6),
 	CAP_CLIP_DISTANCES = (1 << 7),
 	CAP_NOPERSPECTIVE_INTERPOLATION = (1 << 8),
+	CAP_TEXTURE_BUFFER = (1 << 9),
 
 	CAP_2_1_FULL = (CAP_VBO | CAP_PBO | CAP_NON_POW_2),
 	CAP_3_3_FULL = (CAP_PBO | CAP_VBO | CAP_FBO | CAP_UBO | CAP_NON_POW_2 | CAP_TEXTURE_ARRAY)
@@ -43,6 +44,18 @@ namespace OpenGL_Caps
 		glGetIntegerv(GL_MINOR_VERSION, &gl_min);
 
 		bool isMacOS = (strcmp(SDL_GetPlatform(), "Mac OS X") == 0);
+
+		// Texture buffer objects (samplerBuffer) are core in GLES 3.2 / GL 3.1+, and otherwise
+		// available on GLES 3.1 via GL_EXT_texture_buffer (or GL_OES_texture_buffer). They are
+		// required by the GPU renderer to upload the sector/wall/texture tables.
+		bool texBufferCore = (gl_maj > 3) || (gl_maj == 3 && gl_min >= 2);
+		if (texBufferCore ||
+			SDL_GL_ExtensionSupported("GL_EXT_texture_buffer") ||
+			SDL_GL_ExtensionSupported("GL_OES_texture_buffer") ||
+			SDL_GL_ExtensionSupported("GL_ARB_texture_buffer_object"))
+		{
+			m_supportFlags |= CAP_TEXTURE_BUFFER;
+		}
 
 		if (isMacOS && gl_maj >= 4) {
 			m_supportFlags = CAP_PBO | CAP_VBO | CAP_FBO | CAP_UBO | CAP_NON_POW_2 | CAP_TEXTURE_ARRAY;
@@ -148,15 +161,17 @@ namespace OpenGL_Caps
 		}
 
 #ifdef USE_GLES
-		// On GLES, GL_OES_standard_derivatives is required for the GPU renderer.
-		// Override device tier when it is available (the ARB extension checks above don't apply).
-		if (SDL_GL_ExtensionSupported("GL_OES_standard_derivatives"))
+		// On GLES, the GPU renderer needs GL_OES_standard_derivatives (fwidth/dFdx) and texture
+		// buffers (samplerBuffer; core in 3.2, else GL_EXT_texture_buffer on 3.1). Only promote to
+		// the GPU-renderer tier when both are present; otherwise leave the tier as-is so the device
+		// falls back to GPU blit / software rendering instead of producing a black screen.
+		if (SDL_GL_ExtensionSupported("GL_OES_standard_derivatives") && (m_supportFlags & CAP_TEXTURE_BUFFER))
 		{
 			m_deviceTier = DEV_TIER_3;
 		}
 		else
 		{
-			//TFE_System::logWrite(LOG_ERROR, "OpenGL_Caps", "GL_OES_standard_derivatives not supported on this GLES device!");
+			//TFE_System::logWrite(LOG_ERROR, "OpenGL_Caps", "GPU renderer prerequisites (derivatives/texture buffer) not supported on this GLES device!");
 		}
 #endif
 	}
@@ -199,6 +214,11 @@ namespace OpenGL_Caps
 	bool supportsNoPerspectiveInterpolation()
 	{
 		return (m_supportFlags & CAP_NOPERSPECTIVE_INTERPOLATION) != 0;
+	}
+
+	bool supportsTextureBuffer()
+	{
+		return (m_supportFlags & CAP_TEXTURE_BUFFER) != 0;
 	}
 
 	bool deviceSupportsGpuBlit()

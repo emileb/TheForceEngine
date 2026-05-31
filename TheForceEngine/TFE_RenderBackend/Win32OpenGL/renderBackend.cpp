@@ -154,7 +154,10 @@ namespace TFE_RenderBackend
 #ifdef USE_GLES
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+        // Request GLES 3.1 (was 3.2). Texture buffers needed by the GPU renderer are provided on
+        // 3.1 via GL_EXT_texture_buffer; this lets the app run on 3.1 devices while 3.2 devices
+        // still expose the extension. See shader.cpp / OpenGL_Caps::supportsTextureBuffer().
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 #endif
 
 		if (s_isMacOS) {

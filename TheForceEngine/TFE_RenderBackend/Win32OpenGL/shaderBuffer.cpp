@@ -2,8 +2,26 @@
 #include "gl.h"
 #include <memory.h>
 #include "openGL_Caps.h"
+#ifdef USE_GLES
+#include <SDL_video.h>
+#endif
 
 GLenum getFormat(const ShaderBufferDef& bufferDef);
+
+#ifdef USE_GLES
+// glTexBuffer is core in GLES 3.2 but only available as glTexBufferEXT / glTexBufferOES on a 3.1
+// context. The glad loader (generated for 3.2) may resolve the core symbol to null on such a
+// device, so resolve a working entry point at runtime, preferring the core symbol.
+typedef void (*PFN_glTexBuffer)(GLenum target, GLenum internalformat, GLuint buffer);
+static PFN_glTexBuffer resolveTexBuffer()
+{
+	// Prefer the core symbol, then the 3.1 extension spellings.
+	PFN_glTexBuffer fn = (PFN_glTexBuffer)SDL_GL_GetProcAddress("glTexBuffer");
+	if (!fn) { fn = (PFN_glTexBuffer)SDL_GL_GetProcAddress("glTexBufferEXT"); }
+	if (!fn) { fn = (PFN_glTexBuffer)SDL_GL_GetProcAddress("glTexBufferOES"); }
+	return fn;
+}
+#endif
 
 ShaderBuffer::~ShaderBuffer()
 {
@@ -35,7 +53,12 @@ bool ShaderBuffer::create(u32 count, const ShaderBufferDef& bufferDef, bool dyna
 
 	glGenTextures(1, &m_gpuHandle[1]);
 	glBindTexture(GL_TEXTURE_BUFFER, m_gpuHandle[1]);
+#ifdef USE_GLES
+	static PFN_glTexBuffer s_texBuffer = resolveTexBuffer();
+	if (s_texBuffer) { s_texBuffer(GL_TEXTURE_BUFFER, internalFormat, m_gpuHandle[0]); }
+#else
 	glTexBuffer(GL_TEXTURE_BUFFER, internalFormat, m_gpuHandle[0]);
+#endif
 	glBindTexture(GL_TEXTURE_BUFFER, 0);
 	
 	return true;

@@ -29,7 +29,9 @@ namespace ShaderGL
 
 	static const s32 c_glslVersion[] = { 130, 330, 450 };
 #ifdef USE_GLES
-	static const GLchar* c_glslVersionString[] = { "#version 320 es\n", "#version 320 es\n", "#version 320 es\n" };
+	// GLES 3.1 baseline. Texture buffers (samplerBuffer) are not core until 3.2, so on a 3.1
+	// context they are enabled per-shader via GL_EXT_texture_buffer (see s_ext_texture_buffer).
+	static const GLchar* c_glslVersionString[] = { "#version 310 es\n", "#version 310 es\n", "#version 310 es\n" };
 #else
 	static const GLchar* c_glslVersionString[] = { "#version 130\n", "#version 330\n", "#version 450\n" };
 #endif
@@ -68,6 +70,10 @@ static const char* s_fragmentShaderDefine = "#define FRAGMENT_SHADER\n";
 static const char* s_ext_OES_standard_derivatives  = "#extension GL_OES_standard_derivatives : enable\n";
 static const char* s_ext_EXT_clip_cull_distance     = "#extension GL_EXT_clip_cull_distance : enable\n";
 static const char* s_ext_NV_noperspective            = "#extension GL_NV_shader_noperspective_interpolation : enable\n";
+// Texture buffers are core in GLES 3.2; on a 3.1 context they require an extension. Enable both
+// the EXT and OES spellings ('enable' only warns if unsupported, so blit-only/3.0 shaders that
+// never reference samplerBuffer still compile).
+static const char* s_ext_texture_buffer             = "#extension GL_EXT_texture_buffer : enable\n#extension GL_OES_texture_buffer : enable\n";
 static const char* s_noperspective_define            = "#define NOPERSPECTIVE noperspective\n";
 static const char* s_no_noperspective_define         = "#define NOPERSPECTIVE\n";
 static const char* s_defaultPrecisions = R"(
@@ -81,6 +87,10 @@ static const char* s_defaultPrecisions = R"(
 	precision highp sampler2DShadow;
 	precision highp samplerCubeShadow;
 	precision highp sampler2DArrayShadow;
+)";
+// samplerBuffer precision qualifiers are only valid when texture buffers are available, so they
+// are injected separately (gated on OpenGL_Caps::supportsTextureBuffer()).
+static const char* s_textureBufferPrecisions = R"(
 	precision highp samplerBuffer;
 	precision highp isamplerBuffer;
 	precision highp usamplerBuffer;
@@ -106,6 +116,8 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 	{
 		std::vector<const GLchar*> parts;
 		parts.push_back(ShaderGL::c_glslVersionString[m_shaderVersion]);
+		if (OpenGL_Caps::supportsTextureBuffer())
+			parts.push_back(s_ext_texture_buffer);
 		if (OpenGL_Caps::supportsClipping())
 			parts.push_back(s_ext_EXT_clip_cull_distance);
 		if (OpenGL_Caps::supportsNoPerspectiveInterpolation())
@@ -118,6 +130,8 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 			parts.push_back(s_no_noperspective_define);
 		}
 		parts.push_back(s_defaultPrecisions);
+		if (OpenGL_Caps::supportsTextureBuffer())
+			parts.push_back(s_textureBufferPrecisions);
 		parts.push_back(s_vertexShaderDefine);
 		if (defineString) parts.push_back(defineString);
 		parts.push_back(vertexShaderGLSL);
@@ -131,6 +145,8 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 		std::vector<const GLchar*> parts;
 		parts.push_back(ShaderGL::c_glslVersionString[m_shaderVersion]);
 		parts.push_back(s_ext_OES_standard_derivatives);
+		if (OpenGL_Caps::supportsTextureBuffer())
+			parts.push_back(s_ext_texture_buffer);
 		if (OpenGL_Caps::supportsNoPerspectiveInterpolation())
 		{
 			parts.push_back(s_ext_NV_noperspective);
@@ -141,6 +157,8 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 			parts.push_back(s_no_noperspective_define);
 		}
 		parts.push_back(s_defaultPrecisions);
+		if (OpenGL_Caps::supportsTextureBuffer())
+			parts.push_back(s_textureBufferPrecisions);
 		parts.push_back(s_fragmentShaderDefine);
 		if (defineString) parts.push_back(defineString);
 		parts.push_back(fragmentShaderGLSL);
