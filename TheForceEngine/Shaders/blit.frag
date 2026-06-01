@@ -13,9 +13,14 @@ uniform vec4 ColorCorrectParam;
 #endif
 
 in vec2 Frag_UV;
+#ifdef TFE_GLES2
+// GLES 2.0 / GLSL ES 1.00 has no user-declared fragment outputs; write to gl_FragColor instead.
+#define Out_Color gl_FragColor
+#else
 out vec4 Out_Color;
+#endif
 
-// All components are in the range [0…1], including hue.
+// All components are in the range [0â€¦1], including hue.
 vec3 rgb2hsv(vec3 c)
 {
     vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -27,7 +32,7 @@ vec3 rgb2hsv(vec3 c)
     return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
 }
 
-// All components are in the range [0…1], including hue.
+// All components are in the range [0â€¦1], including hue.
 vec3 hsv2rgb(vec3 c)
 {
     vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);

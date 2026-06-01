@@ -120,7 +120,8 @@ namespace OpenGL_Caps
 			m_supportFlags |= CAP_ANISO;
 
 		// Get texture buffer maximum size.
-		glGetIntegerv(GL_MAX_TEXTURE_BUFFER_SIZE, &m_textureBufferMaxSize);
+		if(m_supportFlags & CAP_TEXTURE_BUFFER)
+            glGetIntegerv(GL_MAX_TEXTURE_BUFFER_SIZE, &m_textureBufferMaxSize);
 
 		if (m_supportFlags & CAP_ANISO)
 		{
