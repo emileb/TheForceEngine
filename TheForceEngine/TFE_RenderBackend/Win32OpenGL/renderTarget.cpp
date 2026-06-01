@@ -43,7 +43,7 @@ bool RenderTarget::create(s32 textureCount, TextureGpu** textures, bool depthBuf
 	glBindFramebuffer(GL_FRAMEBUFFER, m_gpuHandle);
 	for (u32 i = 0; i < m_textureCount; i++)
 	{
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, m_texture[i]->getHandle(), 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, m_texture[i]->getHandle(), 0);
 	}
 
 	m_depthBufferHandle = 0;

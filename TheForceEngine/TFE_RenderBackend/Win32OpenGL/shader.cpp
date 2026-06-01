@@ -81,6 +81,7 @@ static const char* s_defaultPrecisions = R"(
 	precision highp float;
 	precision highp sampler2D;
 	precision highp usampler2D;
+	precision highp isampler2D;
 	precision highp sampler3D;
 	precision highp samplerCube;
 	precision highp sampler2DArray;
@@ -105,6 +106,33 @@ static const char* s_defaultPrecisions = R"(
 static const char* s_noperspective_define = "#define NOPERSPECTIVE noperspective\n";
 #endif
 
+// Shared texture-buffer fetch abstraction. Buffer samplers are accessed via texelFetchBuf(). On a
+// device with texture buffers (GLES 3.1+/desktop) it maps to the native samplerBuffer/texelFetch.
+// On GLES 3.0 (no texture buffers), SHADER_BUFFER_2D is defined and the linear buffer is emulated
+// with a 2D data texture of width BUF_TEX_WIDTH (must match c_bufTexWidth in shaderBuffer.cpp).
+static const char* s_bufferFetch = R"(
+#ifdef SHADER_BUFFER_2D
+	#ifndef BUF_TEX_WIDTH
+	#define BUF_TEX_WIDTH 2048
+	#endif
+	#define samplerBuffer sampler2D
+	#define isamplerBuffer isampler2D
+	#define usamplerBuffer usampler2D
+	vec4  texelFetchBuf(sampler2D s, int i)  { return texelFetch(s, ivec2(i % BUF_TEX_WIDTH, i / BUF_TEX_WIDTH), 0); }
+	ivec4 texelFetchBuf(isampler2D s, int i) { return texelFetch(s, ivec2(i % BUF_TEX_WIDTH, i / BUF_TEX_WIDTH), 0); }
+	uvec4 texelFetchBuf(usampler2D s, int i) { return texelFetch(s, ivec2(i % BUF_TEX_WIDTH, i / BUF_TEX_WIDTH), 0); }
+#elif defined(GL_ES) || __VERSION__ >= 140
+	// samplerBuffer requires GLSL 1.40+ (desktop) or GLES; omit on the GLSL 130 compatible path,
+	// where these helpers are unused (blit/2D shaders never call texelFetchBuf).
+	vec4  texelFetchBuf(samplerBuffer s, int i)  { return texelFetch(s, i); }
+	ivec4 texelFetchBuf(isamplerBuffer s, int i) { return texelFetch(s, i); }
+	uvec4 texelFetchBuf(usamplerBuffer s, int i) { return texelFetch(s, i); }
+#endif
+)";
+#ifdef USE_GLES
+static const char* s_shaderBuffer2DDefine = "#define SHADER_BUFFER_2D 1\n";
+#endif
+
 bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL, const char* defineString/* = nullptr*/, ShaderVersion version/* = SHADER_VER_COMPTABILE*/)
 {
 	// Create shaders
@@ -112,10 +140,13 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 
 #ifdef USE_GLES
 	// GLES: build shader parts dynamically to inject version, extensions, and precision qualifiers.
+	// Texture buffers require a 3.1 baseline (#version 310 es + GL_EXT_texture_buffer); when they are
+	// unavailable we target #version 300 es and emulate buffers with 2D textures (the GLES 3.0 path).
+	const GLchar* glesVersion = OpenGL_Caps::supportsTextureBuffer() ? ShaderGL::c_glslVersionString[m_shaderVersion] : "#version 300 es\n";
 	u32 vertHandle = glCreateShader(GL_VERTEX_SHADER);
 	{
 		std::vector<const GLchar*> parts;
-		parts.push_back(ShaderGL::c_glslVersionString[m_shaderVersion]);
+		parts.push_back(glesVersion);
 		if (OpenGL_Caps::supportsTextureBuffer())
 			parts.push_back(s_ext_texture_buffer);
 		if (OpenGL_Caps::supportsClipping())
@@ -132,6 +163,9 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 		parts.push_back(s_defaultPrecisions);
 		if (OpenGL_Caps::supportsTextureBuffer())
 			parts.push_back(s_textureBufferPrecisions);
+		else
+			parts.push_back(s_shaderBuffer2DDefine);
+		parts.push_back(s_bufferFetch);
 		parts.push_back(s_vertexShaderDefine);
 		if (defineString) parts.push_back(defineString);
 		parts.push_back(vertexShaderGLSL);
@@ -143,7 +177,7 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 	u32 fragHandle = glCreateShader(GL_FRAGMENT_SHADER);
 	{
 		std::vector<const GLchar*> parts;
-		parts.push_back(ShaderGL::c_glslVersionString[m_shaderVersion]);
+		parts.push_back(glesVersion);
 		parts.push_back(s_ext_OES_standard_derivatives);
 		if (OpenGL_Caps::supportsTextureBuffer())
 			parts.push_back(s_ext_texture_buffer);
@@ -159,6 +193,9 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 		parts.push_back(s_defaultPrecisions);
 		if (OpenGL_Caps::supportsTextureBuffer())
 			parts.push_back(s_textureBufferPrecisions);
+		else
+			parts.push_back(s_shaderBuffer2DDefine);
+		parts.push_back(s_bufferFetch);
 		parts.push_back(s_fragmentShaderDefine);
 		if (defineString) parts.push_back(defineString);
 		parts.push_back(fragmentShaderGLSL);
@@ -178,9 +215,9 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 		version_string = ShaderGL::c_glslVersionString[m_shaderVersion];
 	}
 
-	const GLchar *vertex_shader_with_version[6] = { version_string, s_defaultPrecisions, s_noperspective_define, s_vertexShaderDefine, defineString ? defineString : "", vertexShaderGLSL };
+	const GLchar *vertex_shader_with_version[7] = { version_string, s_defaultPrecisions, s_noperspective_define, s_bufferFetch, s_vertexShaderDefine, defineString ? defineString : "", vertexShaderGLSL };
 	u32 vertHandle = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertHandle, 6, vertex_shader_with_version, NULL);
+	glShaderSource(vertHandle, 7, vertex_shader_with_version, NULL);
 	glCompileShader(vertHandle);
 
 	GLint success = 0;
@@ -193,9 +230,9 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 		return false;
 	}
 
-	const GLchar *fragment_shader_with_version[6] = { version_string, s_defaultPrecisions, s_noperspective_define, s_fragmentShaderDefine, defineString ? defineString : "", fragmentShaderGLSL };
+	const GLchar *fragment_shader_with_version[7] = { version_string, s_defaultPrecisions, s_noperspective_define, s_bufferFetch, s_fragmentShaderDefine, defineString ? defineString : "", fragmentShaderGLSL };
 	u32 fragHandle = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragHandle, 6, fragment_shader_with_version, NULL);
+	glShaderSource(fragHandle, 7, fragment_shader_with_version, NULL);
 	glCompileShader(fragHandle);
 	glGetShaderiv(fragHandle, GL_COMPILE_STATUS, &success);
 	if (!success)

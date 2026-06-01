@@ -50,7 +50,7 @@ void main()
 	Frag_ClipDistance[7] = 1.0; // ensure SW-clip array is explicitly sized (indexed by integral constant) for GLES.
 	for (int i = 0; i < int(portalCount) && i < 8; i++)
 	{
-		vec4 plane = texelFetch(DrawListPlanes, int(portalOffset) + i);
+		vec4 plane = texelFetchBuf(DrawListPlanes, int(portalOffset) + i);
 		Frag_ClipDistance[i] = dot(vec4(worldPos.xyz, 1.0), plane);
 	}
 	for (int i = int(portalCount); i < 8; i++)

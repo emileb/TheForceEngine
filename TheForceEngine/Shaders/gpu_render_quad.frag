@@ -62,7 +62,7 @@ flat in vec4 Frag_TextureId_Color;
 
 	vec4 sampleTextureClamp(int id, vec2 uv)
 	{
-		ivec4 sampleData = texelFetch(TextureTable, id);
+		ivec4 sampleData = texelFetchBuf(TextureTable, id);
 		ivec3 iuv;
 		uv = scaleUv(uv, sampleData.y);
 		iuv.xy = ivec2(uv);
@@ -92,7 +92,7 @@ flat in vec4 Frag_TextureId_Color;
 
 	float sampleTextureClamp(int id, vec2 uv)
 	{
-		ivec4 sampleData = texelFetch(TextureTable, id);
+		ivec4 sampleData = texelFetchBuf(TextureTable, id);
 		ivec3 iuv;
 		iuv.xy = ivec2(uv);
 		iuv.z = 0;

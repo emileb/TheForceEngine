@@ -48,11 +48,14 @@ namespace OpenGL_Caps
 		// Texture buffer objects (samplerBuffer) are core in GLES 3.2 / GL 3.1+, and otherwise
 		// available on GLES 3.1 via GL_EXT_texture_buffer (or GL_OES_texture_buffer). They are
 		// required by the GPU renderer to upload the sector/wall/texture tables.
+		// Set TFE_FORCE_GLES30 to 1 to force the GLES 3.0 (2D-texture) buffer emulation path for
+		// testing, even on hardware that natively supports texture buffers.
+		#define TFE_FORCE_GLES30 0
 		bool texBufferCore = (gl_maj > 3) || (gl_maj == 3 && gl_min >= 2);
-		if (texBufferCore ||
+		if (!TFE_FORCE_GLES30 && (texBufferCore ||
 			SDL_GL_ExtensionSupported("GL_EXT_texture_buffer") ||
 			SDL_GL_ExtensionSupported("GL_OES_texture_buffer") ||
-			SDL_GL_ExtensionSupported("GL_ARB_texture_buffer_object"))
+			SDL_GL_ExtensionSupported("GL_ARB_texture_buffer_object")))
 		{
 			m_supportFlags |= CAP_TEXTURE_BUFFER;
 		}
@@ -161,17 +164,17 @@ namespace OpenGL_Caps
 		}
 
 #ifdef USE_GLES
-		// On GLES, the GPU renderer needs GL_OES_standard_derivatives (fwidth/dFdx) and texture
-		// buffers (samplerBuffer; core in 3.2, else GL_EXT_texture_buffer on 3.1). Only promote to
-		// the GPU-renderer tier when both are present; otherwise leave the tier as-is so the device
-		// falls back to GPU blit / software rendering instead of producing a black screen.
-		if (SDL_GL_ExtensionSupported("GL_OES_standard_derivatives") && (m_supportFlags & CAP_TEXTURE_BUFFER))
+		// On GLES, the GPU renderer needs GL_OES_standard_derivatives (fwidth/dFdx). Texture buffers
+		// are used when available (supportsTextureBuffer()); otherwise the 2D-texture emulation in
+		// shaderBuffer.cpp provides the same data access on GLES 3.0, so they are NOT required to
+		// enable the GPU-renderer tier. Devices without derivatives fall back to blit/software.
+		if (SDL_GL_ExtensionSupported("GL_OES_standard_derivatives"))
 		{
 			m_deviceTier = DEV_TIER_3;
 		}
 		else
 		{
-			//TFE_System::logWrite(LOG_ERROR, "OpenGL_Caps", "GPU renderer prerequisites (derivatives/texture buffer) not supported on this GLES device!");
+			//TFE_System::logWrite(LOG_ERROR, "OpenGL_Caps", "GL_OES_standard_derivatives not supported on this GLES device!");
 		}
 #endif
 	}

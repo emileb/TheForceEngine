@@ -49,4 +49,10 @@ private:
 	u32 m_gpuHandle[2];
 	bool m_dynamic;
 	bool m_initialized;
+
+	// GLES 3.0 fallback: when texture buffers are unavailable the data is stored in a 2D texture.
+	u32 m_texWidth  = 0;
+	u32 m_texHeight = 0;
+	u32 m_texFormat = 0;	// GL pixel format  (e.g. GL_RGBA / GL_RGBA_INTEGER)
+	u32 m_texType   = 0;	// GL pixel type    (e.g. GL_FLOAT / GL_INT / GL_UNSIGNED_INT)
 };

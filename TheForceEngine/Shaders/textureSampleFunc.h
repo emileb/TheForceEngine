@@ -119,7 +119,7 @@ vec2 scaleUv(vec2 uv, int data)
 
 vec4 sampleTexture(int id, vec2 uv)
 {
-	ivec4 sampleData = texelFetch(TextureTable, id);
+	ivec4 sampleData = texelFetchBuf(TextureTable, id);
 	sampleData.zw &= ivec2(32767);
 
 	uv = scaleUv(uv, sampleData.y);
@@ -142,7 +142,7 @@ vec4 sampleTexture(int id, vec2 uv)
 
 vec4 sampleTexture(int id, vec2 uv, bool sky, bool flip, bool applyFlatWarp, out vec3 tint)
 {
-	ivec4 sampleData = texelFetch(TextureTable, id);
+	ivec4 sampleData = texelFetchBuf(TextureTable, id);
 	tint = TextureSettings == 0u ? vec3(1.0) : getHalfTint(sampleData.zw);
 	sampleData.zw &= ivec2(32767);
 
@@ -203,7 +203,7 @@ vec4 sampleTexture(int id, vec2 uv, bool sky, bool flip, bool applyFlatWarp, out
 
 vec4 sampleTextureClamp(int id, vec2 uv)
 {
-	ivec4 sampleData = texelFetch(TextureTable, id);
+	ivec4 sampleData = texelFetchBuf(TextureTable, id);
 	sampleData.zw &= ivec2(32767);
 
 	uv = scaleUv(uv, sampleData.y);
@@ -218,7 +218,7 @@ vec4 sampleTextureClamp(int id, vec2 uv)
 
 vec4 sampleTextureClamp(int id, vec2 uv, bool opaque)
 {
-	ivec4 sampleData = texelFetch(TextureTable, id);
+	ivec4 sampleData = texelFetchBuf(TextureTable, id);
 	sampleData.zw &= ivec2(32767);
 
 	uv = scaleUv(uv, sampleData.y);
@@ -246,7 +246,7 @@ vec4 sampleTextureClamp(int id, vec2 uv, bool opaque)
 #else
 float sampleTexture(int id, vec2 uv)
 {
-	ivec4 sampleData = texelFetch(TextureTable, id);
+	ivec4 sampleData = texelFetchBuf(TextureTable, id);
 	sampleData.zw &= ivec2(32767);
 
 	ivec3 iuv;
@@ -267,7 +267,7 @@ float sampleTexture(int id, vec2 uv)
 
 float sampleTexture(int id, vec2 uv, bool sky, bool flip, bool applyFlatWarp)
 {
-	ivec4 sampleData = texelFetch(TextureTable, id);
+	ivec4 sampleData = texelFetchBuf(TextureTable, id);
 	sampleData.zw &= ivec2(32767);
 
 	ivec3 iuv;
@@ -316,7 +316,7 @@ float sampleTexture(int id, vec2 uv, bool sky, bool flip, bool applyFlatWarp)
 
 float sampleTextureClamp(int id, vec2 uv)
 {
-	ivec4 sampleData = texelFetch(TextureTable, id);
+	ivec4 sampleData = texelFetchBuf(TextureTable, id);
 	sampleData.zw &= ivec2(32767);
 
 	ivec3 iuv;
@@ -341,7 +341,7 @@ float sampleTextureClamp(int id, vec2 uv)
 
 float sampleTextureClamp(int id, vec2 uv, bool opaque)
 {
-	ivec4 sampleData = texelFetch(TextureTable, id);
+	ivec4 sampleData = texelFetchBuf(TextureTable, id);
 	sampleData.zw &= ivec2(32767);
 
 	ivec3 iuv;

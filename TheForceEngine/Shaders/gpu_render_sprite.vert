@@ -30,9 +30,9 @@ void main()
 	int spriteIndex = gl_VertexID / 4;
 	int vertexId  = gl_VertexID & 3;
 	
-	vec4 posTextureXZ = texelFetch(DrawListPosXZ_Texture, spriteIndex);
-	vec4 posTextureYU = texelFetch(DrawListPosYU_Texture, spriteIndex);
-	uvec2 texPortalData = uvec2(texelFetch(DrawListTexId_Texture, spriteIndex).rg);
+	vec4 posTextureXZ = texelFetchBuf(DrawListPosXZ_Texture, spriteIndex);
+	vec4 posTextureYU = texelFetchBuf(DrawListPosYU_Texture, spriteIndex);
+	uvec2 texPortalData = uvec2(texelFetchBuf(DrawListTexId_Texture, spriteIndex).rg);
 	uint tex_flags = texPortalData.x;
 	Frag_TextureId = int(tex_flags & 32767u);
 
@@ -43,7 +43,7 @@ void main()
 	vtx_pos.xz = mix(posTextureXZ.xy, posTextureXZ.zw, u);
 	vtx_pos.y  = mix(posTextureYU.x, posTextureYU.y, v);
 
-	ivec2 sh = texelFetch(TextureTable, Frag_TextureId).yw;
+	ivec2 sh = texelFetchBuf(TextureTable, Frag_TextureId).yw;
 	float scaleFactor = 1.0 / float(sh.x >> 12);
 
 	vec2 vtx_uv;
@@ -62,7 +62,7 @@ void main()
 	Frag_ClipDistance[7] = 1.0; // ensure SW-clip array is explicitly sized (indexed by integral constant) for GLES.
 	for (int i = 0; i < int(portalCount) && i < 8; i++)
 	{
-		vec4 plane = texelFetch(DrawListPlanes, int(portalOffset) + i);
+		vec4 plane = texelFetchBuf(DrawListPlanes, int(portalOffset) + i);
 		Frag_ClipDistance[i] = dot(vec4(vtx_pos.xyz, 1.0), plane);
 	}
 	for (int i = int(portalCount); i < 8; i++)
