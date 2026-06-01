@@ -26,6 +26,9 @@ namespace OpenGL_Caps
 	bool supportsClipping();
 	bool supportsNoPerspectiveInterpolation();
 	bool supportsTextureBuffer();
+	// True when the active context is OpenGL ES 2.0 (GLSL ES 1.00). In this mode only the
+	// software renderer + blit path is supported (no GPU renderer / color conversion).
+	bool isGLES2();
 
 	bool deviceSupportsGpuBlit();
 	bool deviceSupportsGpuColorConversion();

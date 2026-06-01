@@ -179,7 +179,33 @@ namespace TFE_RenderBackend
 		}
 		s_window = window;
 
-		SDL_GLContext context = SDL_GL_CreateContext(window);
+		SDL_GLContext context = nullptr;
+#ifdef USE_GLES
+		if (!s_isMacOS)
+		{
+			// Request a GLES 3.0+ context first (the requested version is a minimum, so 3.1/3.2
+			// devices still get their highest context). If the device/driver cannot provide a 3.x
+			// context, fall back to GLES 2.0, which runs the software renderer + blit path only.
+			// Set TFE_FORCE_GLES20 to 1 to force the GLES 2.0 fallback for testing on 3.x hardware.
+			#define TFE_FORCE_GLES20 0
+			const int esMajors[] = { 3, 2 };
+			for (int i = TFE_FORCE_GLES20 ? 1 : 0; i < 2 && !context; i++)
+			{
+				SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+				SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, esMajors[i]);
+				SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+				context = SDL_GL_CreateContext(window);
+				if (context)
+				{
+					TFE_System::logWrite(LOG_MSG, "RenderBackend", "Created GLES %d.x context.", esMajors[i]);
+				}
+			}
+		}
+		else
+#endif
+		{
+			context = SDL_GL_CreateContext(window);
+		}
 		if (!context)
 		{
 			SDL_DestroyWindow(window);
@@ -204,7 +230,13 @@ namespace TFE_RenderBackend
 		printGLInfo();
 		int tier = OpenGL_Caps::getDeviceTier();
 		TFE_System::logWrite(LOG_MSG, "RenderBackend", "OpenGL Device Tier: %d", tier);
-		if (tier < 2)
+		// GLES 2.0 devices only reach Tier 1 (GPU blit + software renderer); accept them. All other
+		// backends require Tier 2 (GPU color conversion / GPU renderer).
+		int minTier = 2;
+#ifdef USE_GLES
+		if (OpenGL_Caps::isGLES2()) { minTier = 1; }
+#endif
+		if (tier < minTier)
 		{
 			TFE_System::logWrite(LOG_ERROR, "RenderBackend", "Insufficient GL capabilities!");
 			SDL_GL_DeleteContext(context);
@@ -410,13 +442,24 @@ namespace TFE_RenderBackend
 		const s32 c_savedTexUnits = 4;
 		GLint prevTexBindings[c_savedTexUnits] = { 0 };
 
+		// VAOs and separate draw/read framebuffer bindings are GLES 3.0+; on a GLES 2.0 context use
+		// the single GL_FRAMEBUFFER binding and skip the (non-existent) VAO state entirely.
+		const bool gles2 = OpenGL_Caps::isGLES2();
 		glGetIntegerv(GL_CURRENT_PROGRAM, &prevProgram);
 		glGetIntegerv(GL_ACTIVE_TEXTURE, &prevActiveTex);
-		glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVAO);
+		if (!gles2) { glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVAO); }
 		glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prevArrayBuf);
 		glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &prevElementBuf);
-		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prevDrawFBO);
-		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prevReadFBO);
+		if (gles2)
+		{
+			glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevDrawFBO);
+			prevReadFBO = prevDrawFBO;
+		}
+		else
+		{
+			glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prevDrawFBO);
+			glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prevReadFBO);
+		}
 		glGetIntegerv(GL_VIEWPORT, prevViewport);
 		glGetIntegerv(GL_SCISSOR_BOX, prevScissor);
 		prevBlend       = glIsEnabled(GL_BLEND);
@@ -444,9 +487,16 @@ namespace TFE_RenderBackend
 		glActiveTexture((GLenum)prevActiveTex);
 		glBindBuffer(GL_ARRAY_BUFFER, (GLuint)prevArrayBuf);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, (GLuint)prevElementBuf);
-		glBindVertexArray((GLuint)prevVAO);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, (GLuint)prevDrawFBO);
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, (GLuint)prevReadFBO);
+		if (gles2)
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prevDrawFBO);
+		}
+		else
+		{
+			glBindVertexArray((GLuint)prevVAO);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, (GLuint)prevDrawFBO);
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, (GLuint)prevReadFBO);
+		}
 		glUseProgram((GLuint)prevProgram);
 		glViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
 		glScissor(prevScissor[0], prevScissor[1], prevScissor[2], prevScissor[3]);
@@ -762,6 +812,20 @@ namespace TFE_RenderBackend
 		s_useRenderTarget = (vdispInfo.flags & VDISP_RENDER_TARGET) != 0;
 		s_bloomEnable = graphicsSettings->bloomEnabled && s_useRenderTarget;
 
+#ifdef USE_GLES
+		if (OpenGL_Caps::isGLES2())
+		{
+			// GLES 2.0 supports the software renderer only. Render targets and bloom rely on GLES 3
+			// features, so force them off. GPU color conversion is left as requested: it works on
+			// GLES 2.0 via a single-channel index texture (GL_LUMINANCE, see textureGpu.cpp) plus the
+			// palette lookup in the blit shader. Forcing it off here would mismatch the software
+			// renderer (which still outputs 8-bit palette indices) against an RGBA8 display texture,
+			// producing a horizontally-squashed, mis-colored image.
+			s_useRenderTarget = false;
+			s_bloomEnable     = false;
+		}
+#endif
+
 		return recreateDisplay(true);
 	}
 
@@ -810,6 +874,11 @@ namespace TFE_RenderBackend
 	bool getGPUColorConvert()
 	{
 		return s_gpuColorConvert;
+	}
+
+	bool supportsGpuRenderer()
+	{
+		return OpenGL_Caps::deviceSupportsGpuRenderer();
 	}
 
 	void updateVirtualDisplay(const void* buffer, size_t size)

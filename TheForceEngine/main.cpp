@@ -14,6 +14,7 @@
 #include <TFE_FileSystem/paths.h>
 #include <TFE_Polygon/polygon.h>
 #include <TFE_RenderBackend/renderBackend.h>
+#include <TFE_Jedi/Renderer/jediRenderer.h>
 #include <TFE_Input/inputMapping.h>
 #include <TFE_Settings/settings.h>
 #include <TFE_System/system.h>
@@ -622,6 +623,13 @@ int main(int argc, char* argv[])
 		TFE_System::logWrite(LOG_CRITICAL, "GPU", "Cannot initialize GPU/Window.");
 		TFE_System::logClose();
 		return PROGRAM_ERROR;
+	}
+	// On devices without GPU-renderer support (e.g. GLES 2.0), force the saved renderer setting to
+	// Software so the rest of the engine (HUD asset selection, renderer setup) is consistent.
+	if (!TFE_RenderBackend::supportsGpuRenderer() && graphics->rendererIndex != RENDERER_SOFTWARE)
+	{
+		graphics->rendererIndex = RENDERER_SOFTWARE;
+		TFE_System::logWrite(LOG_MSG, "RenderBackend", "GPU renderer unavailable (GLES 2.0): forcing Software renderer.");
 	}
 	TFE_FrontEndUI::initConsole();
 	TFE_Audio::init(s_nullAudioDevice, TFE_Settings::getSoundSettings()->audioDevice);

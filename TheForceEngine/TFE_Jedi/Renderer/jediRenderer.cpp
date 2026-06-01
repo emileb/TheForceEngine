@@ -169,6 +169,12 @@ namespace TFE_Jedi
 
 	void renderer_setType(RendererType type)
 	{
+		// On devices that cannot run the GPU renderer (e.g. GLES 2.0), force the software renderer
+		// regardless of the requested/saved setting so we never try to use the unsupported path.
+		if (type == RENDERER_HARDWARE && !TFE_RenderBackend::supportsGpuRenderer())
+		{
+			type = RENDERER_SOFTWARE;
+		}
 		s_rendererType = type;
 		render_setResolution();
 	}

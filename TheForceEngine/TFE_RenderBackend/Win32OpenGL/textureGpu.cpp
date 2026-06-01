@@ -75,13 +75,25 @@ bool TextureGpu::create(u32 width, u32 height, TexFormat format, bool hasMipmaps
 	glGenTextures(1, &m_gpuHandle);
 	if (!m_gpuHandle) { return false; }
 
+	GLenum internalFormat = c_internalFormat[format];
+	GLenum baseFormat     = c_baseFormat[format];
+#ifdef USE_GLES
+	if (OpenGL_Caps::isGLES2())
+	{
+		// GLES 2.0 has no sized internal formats for glTexImage2D; the internal format must equal
+		// the (unsized) base format. Only the 8-bit formats are used by the software/blit path.
+		if (format == TexFormat::TEX_RGBA8)   { internalFormat = GL_RGBA;      baseFormat = GL_RGBA; }
+		else if (format == TexFormat::TEX_R8) { internalFormat = GL_LUMINANCE; baseFormat = GL_LUMINANCE; }
+	}
+#endif
+
 	glBindTexture(GL_TEXTURE_2D, m_gpuHandle);
-	glTexImage2D(GL_TEXTURE_2D, 0, c_internalFormat[format], width, height, 0, c_baseFormat[format], c_channelFormat[format], nullptr);
+	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, baseFormat, c_channelFormat[format], nullptr);
 	error = glGetError();
 	// Handle OpenGL driver wonkiness around float16 textures.
 	if (error != GL_NO_ERROR && c_channelFormat[format] == GL_FLOAT)
 	{
-		glTexImage2D(GL_TEXTURE_2D, 0, c_internalFormat[format], width, height, 0, c_baseFormat[format], GL_HALF_FLOAT, nullptr);
+		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, baseFormat, GL_HALF_FLOAT, nullptr);
 		error = glGetError();
 	}
 	assert(error == GL_NO_ERROR);
@@ -160,8 +172,22 @@ bool TextureGpu::createWithData(u32 width, u32 height, const void* buffer, MagFi
 	if (!m_gpuHandle) { return false; }
 
 	glBindTexture(GL_TEXTURE_2D, m_gpuHandle);
+#ifdef USE_GLES
+	if (OpenGL_Caps::isGLES2())
+	{
+		// GLES 2.0: unsized internal format, and NPOT textures cannot use REPEAT wrap or mipmaps,
+		// so clamp + linear (no mipmaps) to stay valid for any texture size.
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter == MAG_FILTER_NONE ? GL_NEAREST : GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		return true;
+	}
+#endif
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
-	
+
 	f32 maxAniso = OpenGL_Caps::getMaxAnisotropy();
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter == MAG_FILTER_NONE ? GL_NEAREST : GL_LINEAR);
@@ -187,10 +213,16 @@ bool TextureGpu::update(const void* buffer, size_t size, s32 layer, s32 mipLevel
 	u32 width  = m_width  >> mipLevel;
 	u32 height = m_height >> mipLevel;
 
+	GLenum uploadFormat = m_channels == 4 ? GL_RGBA : GL_RED;
+#ifdef USE_GLES
+	// GLES 2.0 single-channel textures are GL_LUMINANCE (GL_RED is not a valid format there).
+	if (OpenGL_Caps::isGLES2() && m_channels != 4) { uploadFormat = GL_LUMINANCE; }
+#endif
+
 	if (m_layers == 1)
 	{
 		glBindTexture(GL_TEXTURE_2D, m_gpuHandle);
-		glTexSubImage2D(GL_TEXTURE_2D, mipLevel, 0, 0, width, height, m_channels == 4 ? GL_RGBA : GL_RED, GL_UNSIGNED_BYTE, buffer);
+		glTexSubImage2D(GL_TEXTURE_2D, mipLevel, 0, 0, width, height, uploadFormat, GL_UNSIGNED_BYTE, buffer);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 	else

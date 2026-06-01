@@ -2,6 +2,8 @@
 #include "gl.h"
 #include <assert.h>
 #include <algorithm>
+#include <cstdio>
+#include <cstring>
 #include <SDL_video.h>
 
 enum CapabilityFlags
@@ -28,6 +30,7 @@ namespace OpenGL_Caps
 	static s32 m_textureBufferMaxSize = 0;
 	static f32 m_maxAnisotropy = 1.0f;
 	static s32 m_maxClipDistances = 0;
+	static bool m_isGLES2 = false;
 
 	enum SpecMinimum
 	{
@@ -40,8 +43,26 @@ namespace OpenGL_Caps
 
 		m_supportFlags = 0;
 		m_deviceTier = DEV_TIER_0;
+		m_isGLES2 = false;
 		glGetIntegerv(GL_MAJOR_VERSION, &gl_maj);
 		glGetIntegerv(GL_MINOR_VERSION, &gl_min);
+
+#ifdef USE_GLES
+		// GL_MAJOR_VERSION/GL_MINOR_VERSION are only defined on GLES 3.0+; on a GLES 2.0 context the
+		// queries above raise GL_INVALID_ENUM and leave gl_maj == 0. Parse GL_VERSION ("OpenGL ES X.Y")
+		// to reliably recover the version so we can detect (and support) the GLES 2.0 fallback.
+		(void)glGetError();
+		if (gl_maj == 0)
+		{
+			const char* verStr = (const char*)glGetString(GL_VERSION);
+			if (verStr)
+			{
+				const char* p = strstr(verStr, "ES ");
+				if (p) { p += 3; sscanf(p, "%d.%d", &gl_maj, &gl_min); }
+			}
+		}
+		m_isGLES2 = (gl_maj > 0 && gl_maj < 3);
+#endif
 
 		bool isMacOS = (strcmp(SDL_GetPlatform(), "Mac OS X") == 0);
 
@@ -164,11 +185,18 @@ namespace OpenGL_Caps
 		}
 
 #ifdef USE_GLES
+		if (m_isGLES2)
+		{
+			// GLES 2.0 (GLSL ES 1.00): the GPU renderer relies on GLES 3 features (texelFetch,
+			// integer samplers, texture buffers/arrays, MRT) that do not exist here. Cap the device
+			// at Tier 1 so only the software renderer + GPU blit path is used.
+			m_deviceTier = DEV_TIER_1;
+		}
 		// On GLES, the GPU renderer needs GL_OES_standard_derivatives (fwidth/dFdx). Texture buffers
 		// are used when available (supportsTextureBuffer()); otherwise the 2D-texture emulation in
 		// shaderBuffer.cpp provides the same data access on GLES 3.0, so they are NOT required to
 		// enable the GPU-renderer tier. Devices without derivatives fall back to blit/software.
-		if (SDL_GL_ExtensionSupported("GL_OES_standard_derivatives"))
+		else if (SDL_GL_ExtensionSupported("GL_OES_standard_derivatives"))
 		{
 			m_deviceTier = DEV_TIER_3;
 		}
@@ -222,6 +250,11 @@ namespace OpenGL_Caps
 	bool supportsTextureBuffer()
 	{
 		return (m_supportFlags & CAP_TEXTURE_BUFFER) != 0;
+	}
+
+	bool isGLES2()
+	{
+		return m_isGLES2;
 	}
 
 	bool deviceSupportsGpuBlit()

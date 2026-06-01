@@ -116,8 +116,9 @@ static void flipVert32bpp(void* mem, u32 w, u32 h)
 void ScreenCapture::captureFrontBufferToMemory(u32* mem)
 {
 #ifdef USE_GLES
-	// GLES does not support reading from GL_FRONT; read from GL_BACK instead.
-	glReadBuffer(GL_BACK);
+	// GLES does not support reading from GL_FRONT; read from GL_BACK instead. glReadBuffer is only
+	// available on GLES 3.0+, so skip it on GLES 2.0 (the back buffer is the default read buffer).
+	if (!OpenGL_Caps::isGLES2()) { glReadBuffer(GL_BACK); }
 #else
 	glReadBuffer(GL_FRONT);
 #endif
@@ -166,7 +167,12 @@ void ScreenCapture::update(bool flush)
 	bool popHead = false;
 	if (!OpenGL_Caps::supportsPbo())
 	{
+#ifdef USE_GLES
+		// glReadBuffer is GLES 3.0+; on GLES 2.0 the back buffer is already the default read buffer.
+		if (!OpenGL_Caps::isGLES2()) { glReadBuffer(GL_BACK); }
+#else
 		glReadBuffer(GL_BACK);
+#endif
 		glReadPixels(0, 0, m_width, m_height, GL_RGBA, GL_UNSIGNED_BYTE, m_captures[m_captureHead].imageData.data());
 		popHead = true;
 	}

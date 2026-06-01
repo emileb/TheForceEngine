@@ -3167,7 +3167,19 @@ namespace TFE_FrontEndUI
 
 		ImGui::LabelText("##ConfigLabel", "Renderer:"); ImGui::SameLine(75 * s_uiScale);
 		ImGui::SetNextItemWidth(196 * s_uiScale);
-		ImGui::Combo("##Renderer", &graphics->rendererIndex, c_renderer, IM_ARRAYSIZE(c_renderer));
+		if (!TFE_RenderBackend::supportsGpuRenderer())
+		{
+			// GLES 2.0 devices only support the software renderer; lock the selection so the user
+			// cannot pick the (unavailable) GPU renderer.
+			graphics->rendererIndex = RENDERER_SOFTWARE;
+			ImGui::BeginDisabled();
+			ImGui::Combo("##Renderer", &graphics->rendererIndex, c_renderer, 1);
+			ImGui::EndDisabled();
+		}
+		else
+		{
+			ImGui::Combo("##Renderer", &graphics->rendererIndex, c_renderer, IM_ARRAYSIZE(c_renderer));
+		}
 		if (graphics->rendererIndex == 0)
 		{
 			// Software

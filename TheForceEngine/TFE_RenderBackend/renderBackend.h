@@ -129,6 +129,8 @@ namespace TFE_RenderBackend
 	bool getWidescreen();
 	bool getFrameBufferAsync();
 	bool getGPUColorConvert();
+	// False on GLES 2.0 devices, where only the software renderer is supported.
+	bool supportsGpuRenderer();
 	void* getVirtualDisplayGpuPtr();
 
 	u32 getVirtualDisplayWidth2D();

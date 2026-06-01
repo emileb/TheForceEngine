@@ -139,11 +139,53 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 	m_shaderVersion = version;
 
 #ifdef USE_GLES
+	u32 vertHandle, fragHandle;
+	GLint success = 1;
+	if (OpenGL_Caps::isGLES2())
+	{
+		// GLES 2.0 / GLSL ES 1.00 fallback (software renderer + blit/overlay only). Inject
+		// compatibility shims so the ES 3.00-authored shaders compile: in -> attribute/varying,
+		// out -> varying (vertex) and texture() -> texture2D(). The fragment output is handled
+		// in-shader via TFE_GLES2 (Out_Color -> gl_FragColor); see blit.frag / overlay.frag.
+		static const char* s_es2Version    = "#version 100\n";
+		static const char* s_es2Define     = "#define TFE_GLES2 1\n";
+		static const char* s_es2VertCompat = "#define in attribute\n#define out varying\n#define texture texture2D\n";
+		static const char* s_es2FragCompat = "precision mediump float;\n#define in varying\n#define texture texture2D\n";
+
+		vertHandle = glCreateShader(GL_VERTEX_SHADER);
+		{
+			std::vector<const GLchar*> parts;
+			parts.push_back(s_es2Version);
+			parts.push_back(s_es2Define);
+			parts.push_back(s_es2VertCompat);
+			parts.push_back(s_vertexShaderDefine);
+			if (defineString) parts.push_back(defineString);
+			parts.push_back(vertexShaderGLSL);
+			glShaderSource(vertHandle, (GLsizei)parts.size(), parts.data(), nullptr);
+		}
+		glCompileShader(vertHandle);
+		if (!ShaderGL::CheckShader(vertHandle, ShaderGL::s_vertexFile.c_str())) { return false; }
+
+		fragHandle = glCreateShader(GL_FRAGMENT_SHADER);
+		{
+			std::vector<const GLchar*> parts;
+			parts.push_back(s_es2Version);
+			parts.push_back(s_es2Define);
+			parts.push_back(s_es2FragCompat);
+			parts.push_back(s_fragmentShaderDefine);
+			if (defineString) parts.push_back(defineString);
+			parts.push_back(fragmentShaderGLSL);
+			glShaderSource(fragHandle, (GLsizei)parts.size(), parts.data(), nullptr);
+		}
+		glCompileShader(fragHandle);
+		if (!ShaderGL::CheckShader(fragHandle, ShaderGL::s_fragmentFile.c_str())) { success = 0; }
+	}
+	else {
 	// GLES: build shader parts dynamically to inject version, extensions, and precision qualifiers.
 	// Texture buffers require a 3.1 baseline (#version 310 es + GL_EXT_texture_buffer); when they are
 	// unavailable we target #version 300 es and emulate buffers with 2D textures (the GLES 3.0 path).
 	const GLchar* glesVersion = OpenGL_Caps::supportsTextureBuffer() ? ShaderGL::c_glslVersionString[m_shaderVersion] : "#version 300 es\n";
-	u32 vertHandle = glCreateShader(GL_VERTEX_SHADER);
+	vertHandle = glCreateShader(GL_VERTEX_SHADER);
 	{
 		std::vector<const GLchar*> parts;
 		parts.push_back(glesVersion);
@@ -174,7 +216,7 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 	glCompileShader(vertHandle);
 	if (!ShaderGL::CheckShader(vertHandle, ShaderGL::s_vertexFile.c_str())) { return false; }
 
-	u32 fragHandle = glCreateShader(GL_FRAGMENT_SHADER);
+	fragHandle = glCreateShader(GL_FRAGMENT_SHADER);
 	{
 		std::vector<const GLchar*> parts;
 		parts.push_back(glesVersion);
@@ -202,9 +244,9 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 		glShaderSource(fragHandle, (GLsizei)parts.size(), parts.data(), nullptr);
 	}
 	glCompileShader(fragHandle);
-    GLint success = 1;
 	if (!ShaderGL::CheckShader(fragHandle, ShaderGL::s_fragmentFile.c_str()))
         success = 0;
+	} // end else (GLES 3.x path)
 #else
 	// Desktop GL path (with macOS version override).
 	const GLchar* version_string;
