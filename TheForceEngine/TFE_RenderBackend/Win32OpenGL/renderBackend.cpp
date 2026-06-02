@@ -261,7 +261,13 @@ namespace TFE_RenderBackend
 		}
 
 #if __ANDROID__
-		uiScale = 250;
+		// Scale the UI relative to the actual render resolution so ImGui does not overflow low
+		// resolution screens. 250% is tuned for a 1080p-tall (landscape) display; scale down
+		// proportionally on smaller screens and never exceed that tuned maximum.
+		s32 drawableW = state.width, drawableH = state.height;
+		SDL_GL_GetDrawableSize(window, &drawableW, &drawableH);
+		const s32 refHeight = std::min(drawableW, drawableH);	// shorter side = height in landscape
+		uiScale = std::min(250, std::max(100, 250 * refHeight / 1080));
 #endif
 
     if (s_isMacOS) {

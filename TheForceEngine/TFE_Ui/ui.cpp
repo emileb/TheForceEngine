@@ -8,6 +8,7 @@
 #include "portable-file-dialogs.h"
 #include "markdown.h"
 #include <SDL.h>
+#include <algorithm>
 
 namespace TFE_Ui
 {
@@ -34,6 +35,20 @@ bool init(void* window, void* context, s32 uiScale)
 	// Setup Dear ImGui style
 	ImGui::StyleColorsDark();
 
+	// Scale the scrollbar with the UI so it stays proportional, and make it extra wide on touch
+	// devices (Android) so it is easy to grab on a small screen.
+	{
+		ImGuiStyle& style = ImGui::GetStyle();
+		const f32 scale = f32(s_uiScale) / 100.0f;
+#if __ANDROID__
+		const f32 scrollbarBase = 28.0f;	// touch-friendly width.
+#else
+		const f32 scrollbarBase = 14.0f;	// ImGui default.
+#endif
+		style.ScrollbarSize  = scrollbarBase * scale;
+		style.GrabMinSize    = std::max(style.GrabMinSize, scrollbarBase * scale);
+	}
+
 	// Setup Platform/Renderer bindings
 	ImGui_ImplSDL2_InitForOpenGL((SDL_Window *)window, context);
 	ImGui_ImplOpenGL3_Init(glsl_version);
@@ -53,14 +68,14 @@ bool init(void* window, void* context, s32 uiScale)
 	}
 	
 	TFE_Markdown::init(f32(16 * s_uiScale / 100));
-
+#ifndef __ANDROID__ // Crashes on Sony Xperia
 	// Initialize file dialogs.
 	if (!pfd::settings::available())
 	{
 		// TODO: Log error
 		return false;
 	}
-	
+#endif
 	return true;
 }
 
