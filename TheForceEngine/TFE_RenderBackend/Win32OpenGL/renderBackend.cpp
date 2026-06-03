@@ -151,16 +151,7 @@ namespace TFE_RenderBackend
 		}
 
 		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, true);
-#ifdef USE_GLES
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-        // Request a minimum of GLES 3.0. Per EGL_KHR_create_context the requested version is a
-        // minimum, so 3.1/3.2 devices still get their highest context (and the fast texture-buffer
-        // path), while 3.0-only devices now run via the 2D-texture buffer emulation. Texture buffers
-        // are detected at runtime (OpenGL_Caps::supportsTextureBuffer()); the shaders and ShaderBuffer
-        // pick the native samplerBuffer path or the 2D-texture fallback accordingly.
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-#endif
+
 
 		if (s_isMacOS) {
 			// macOS specific OpenGL context setup
@@ -191,6 +182,12 @@ namespace TFE_RenderBackend
 			const int esMajors[] = { 3, 2 };
 			for (int i = TFE_FORCE_GLES20 ? 1 : 0; i < 2 && !context; i++)
 			{
+                SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
+                SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+                SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+                SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+                SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+                SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 				SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 				SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, esMajors[i]);
 				SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
