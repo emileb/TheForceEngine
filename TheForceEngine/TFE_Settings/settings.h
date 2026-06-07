@@ -60,7 +60,7 @@ struct TFE_Settings_Window
 struct TFE_Settings_Graphics
 {
 	Vec2i gameResolution = { 320, 200 };
-	bool  widescreen = false;
+	bool  widescreen = true;
 	bool  asyncFramebuffer = true;
 	bool  gpuColorConvert = true;
 	bool  colorCorrection = false;
