@@ -73,14 +73,17 @@ if(ENABLE_TFE)
 		target_compile_definitions(tfe PRIVATE ENGINE_NAME="theforceengine")
 		target_include_directories(tfe PRIVATE ${SDL2_ANDROID_INCLUDE_DIR})
 		target_include_directories(tfe PRIVATE ${SDL2_IMAGE_ANDROID_INCLUDE_DIR})
+		# The engine's own mobile/ provides touch_interface.h, so the shared Clibs
+		# android_jni_inc.cpp / touch_interface_base.cpp resolve the same class
+		# definition that touch_interface_tfe.cpp is compiled against.
+		target_include_directories(tfe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/TheForceEngine/mobile)
 		target_include_directories(tfe PRIVATE ${CLIBS_DIR})
-		target_include_directories(tfe PRIVATE ${CLIBS_DIR}/alpha)
 		target_include_directories(tfe PRIVATE ${TOUCH_CONTROLS_DIR})
 		target_link_libraries(tfe PRIVATE SDL2 SDL2_image touchcontrols saffal log GLESv3)
 		target_sources(tfe PRIVATE
 			"${CMAKE_CURRENT_SOURCE_DIR}/TheForceEngine/mobile/game_interface.cpp"
-			"${CLIBS_DIR}/alpha/android_jni.cpp"
-			"${CLIBS_DIR}/psi/touch_interface_tfe.cpp"
+			"${CMAKE_CURRENT_SOURCE_DIR}/TheForceEngine/mobile/touch_interface_tfe.cpp"
+			"${CLIBS_DIR}/psi/android_jni.cpp"
 			"${CLIBS_DIR}/touch_interface_base.cpp"
 			"${CLIBS_DIR}/LogWritter.c"
 			"${CLIBS_DIR}/fts.c"
