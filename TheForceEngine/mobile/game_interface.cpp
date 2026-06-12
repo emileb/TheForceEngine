@@ -12,6 +12,8 @@
 #include <TFE_DarkForces/GameUI/escapeMenu.h>
 #include <TFE_DarkForces/GameUI/pda.h>
 #include <TFE_Input/inputMapping.h>
+#include <TFE_RenderBackend/renderBackend.h>
+#include <TFE_Settings/settings.h>
 
 #include "game_interface.h"
 
@@ -359,6 +361,64 @@ touchscreemode_t PortableGetScreenMode()
     }
 
     return TS_GAME;
+}
+
+// Horizontal pillarbox offset (in device pixels) of the active DF menu's drawn
+// image. The engine maps the absolute mouse X assuming the menu is pinned to the
+// left screen edge (see menu_handleMousePosition / escMenu_handleMousePosition),
+// but the image is actually drawn centred, so the touch layer subtracts this so a
+// tap lands under the finger. The Landru menus (agent menu, briefing, PDA) are
+// always a 320x200 canvas shown at 4:3; the escape menu draws over the live game
+// image, which fills the full width when widescreen is enabled (offset 0).
+static float menuMouseOffsetX(bool escapeMenu)
+{
+    DisplayInfo info;
+    TFE_RenderBackend::getDisplayInfo(&info);
+    if (info.width <= info.height) { return 0.0f; }   // portrait fits to width
+
+    if (escapeMenu && TFE_Settings::getGraphicsSettings()->widescreen)
+    {
+        return 0.0f;
+    }
+
+    const float displayedWidth = (float)info.height * 4.0f / 3.0f;
+    if (displayedWidth >= (float)info.width) { return 0.0f; }
+    return ((float)info.width - displayedWidth) * 0.5f;
+}
+
+// True only for the DarkForces-rendered in-mission menus (escape menu, agent
+// menu, mission briefing, PDA). The ImGui frontend (main menu / config) reports
+// false even though both surface as TS_MENU to the touch layer. Used to pick the
+// on-screen mouse style: relative-drag for the small ImGui widgets, absolute
+// tap-to-position for the large DOS-style menu buttons. Mirrors the state checks
+// in PortableGetScreenMode(). When non-null, *mouseOffsetX receives the menu's
+// horizontal pillarbox offset (device px) for the absolute-tap path.
+int PortableInGameMenu(float* mouseOffsetX)
+{
+    if (mouseOffsetX) { *mouseOffsetX = 0.0f; }
+
+    if (TFE_FrontEndUI::isConsoleOpen())                 { return 0; }
+    if (TFE_FrontEndUI::getAppState() != APP_STATE_GAME) { return 0; }
+    if (TFE_FrontEndUI::isConfigMenuOpen())              { return 0; }
+
+    bool escapeMenu = false;
+    switch (TFE_DarkForces::darkforces_getSubState())
+    {
+        case TFE_DarkForces::DF_SUB_AGENT_MENU:
+        case TFE_DarkForces::DF_SUB_BRIEFING:
+            break;
+
+        case TFE_DarkForces::DF_SUB_MISSION:
+            if (TFE_DarkForces::pda_isOpen())             { break; }
+            if (TFE_DarkForces::escapeMenu_isOpen())      { escapeMenu = true; break; }
+            return 0;
+
+        default:
+            return 0;
+    }
+
+    if (mouseOffsetX) { *mouseOffsetX = menuMouseOffsetX(escapeMenu); }
+    return 1;
 }
 
 
