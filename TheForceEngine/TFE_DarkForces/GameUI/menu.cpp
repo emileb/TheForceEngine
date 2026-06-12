@@ -32,6 +32,9 @@ namespace TFE_DarkForces
 	Vec2i s_cursorPos;
 	s32 s_buttonPressed = -1;
 	JBool s_buttonHover = JFALSE;
+#ifdef __ANDROID__
+	static JBool s_cursorHidden = JFALSE;
+#endif
 		
 	///////////////////////////////////////////
 	// API Implementation
@@ -111,8 +114,23 @@ namespace TFE_DarkForces
 		return vfb_getCpuBuffer();
 	}
 
+#ifdef __ANDROID__
+	void menu_setCursorHidden(JBool hidden)
+	{
+		s_cursorHidden = hidden;
+	}
+
+	JBool menu_getCursorHidden()
+	{
+		return s_cursorHidden;
+	}
+#endif
+
 	void menu_blitCursor(s32 x, s32 y, u8* framebuffer)
 	{
+#ifdef __ANDROID__
+		if (s_cursorHidden) { return; }
+#endif
 		blitDeltaFrame(&s_cursor, x, y, framebuffer);
 	}
 
@@ -200,6 +218,9 @@ namespace TFE_DarkForces
 
 	void menu_blitCursorScaled(s16 x, s16 y, u8* buffer)
 	{
+#ifdef __ANDROID__
+		if (s_cursorHidden) { return; }
+#endif
 		ScreenRect* uiRect = vfb_getScreenRect(VFB_RECT_UI);
 		fixed16_16 xScale = vfb_getXScale();
 		fixed16_16 yScale = vfb_getYScale();

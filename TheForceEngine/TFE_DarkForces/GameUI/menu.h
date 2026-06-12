@@ -17,6 +17,14 @@ namespace TFE_DarkForces
 	void menu_resetCursor();
 	u8*  menu_startupDisplay();
 
+#ifdef __ANDROID__
+	// When hidden, the menu mouse cursor is not drawn (the mouse position is still
+	// tracked for hit-testing). Used by the Android touch UI's tap-to-position mode,
+	// where the finger replaces the cursor. Defaults to visible.
+	void  menu_setCursorHidden(JBool hidden);
+	JBool menu_getCursorHidden();
+#endif
+
 	JBool menu_openResourceArchive(const char* name);
 	void  menu_closeResourceArchive();
 

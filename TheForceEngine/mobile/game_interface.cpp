@@ -11,6 +11,7 @@
 #include <TFE_DarkForces/darkForcesMain.h>
 #include <TFE_DarkForces/GameUI/escapeMenu.h>
 #include <TFE_DarkForces/GameUI/pda.h>
+#include <TFE_DarkForces/GameUI/menu.h>
 #include <TFE_Input/inputMapping.h>
 #include <TFE_RenderBackend/renderBackend.h>
 #include <TFE_Settings/settings.h>
@@ -37,6 +38,11 @@ static volatile uint8_t s_androidPressed[TFE_Input::IA_COUNT] = { 0 };
 // player code hook in TFE_DarkForces/player.cpp.
 static float s_androidFwd    = 0.0f;
 static float s_androidStrafe = 0.0f;
+
+// In-game-menu mouse style. true  = tap-to-position (teleport the cursor onto the
+// tapped button; the touch layer hides the cursor), false = relative drag of a
+// visible cursor. Toggled from the app via PortableSetMouseTapMode().
+static bool s_mouseTapMode = true;
 
 // iortcw-style look accumulators.
 //  _mouse: per-swipe deltas — accumulate, drained & zeroed each frame.
@@ -217,6 +223,12 @@ void PortableAction(int state, int action)
 void PortableTickActions()
 {
     using namespace TFE_Input;
+
+    // Keep the DF menu cursor visibility in sync with the mouse style. Done here
+    // (every frame, Android-only) so there's no startup window where the cursor
+    // shows in tap mode, and so desktop — which never calls this — is unaffected.
+    TFE_DarkForces::menu_setCursorHidden(s_mouseTapMode ? JTRUE : JFALSE);
+
     for (int i = 0; i < IA_COUNT; ++i)
     {
         if (s_androidPressed[i])
@@ -290,6 +302,19 @@ void PortableMouseAbs(float x, float y)
 
 void PortableMouseButton(int state, int button, float dx, float dy)
 {
+}
+
+// Select the in-game-menu mouse style (see s_mouseTapMode). The cursor-hidden
+// state is pushed to the menu system every frame from PortableTickActions(), so
+// just store the flag here.
+void PortableSetMouseTapMode(int enable)
+{
+    s_mouseTapMode = (enable != 0);
+}
+
+int PortableGetMouseTapMode()
+{
+    return s_mouseTapMode ? 1 : 0;
 }
 
 void PortableCommand(const char *cmd)

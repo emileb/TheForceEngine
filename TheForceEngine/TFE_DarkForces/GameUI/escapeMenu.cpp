@@ -3,6 +3,9 @@
 #include "escapeMenu.h"
 #include "delt.h"
 #include "uiDraw.h"
+#ifdef __ANDROID__
+#include "menu.h"	// menu_getCursorHidden() for the mobile tap-to-position cursor
+#endif
 #include <TFE_DarkForces/agent.h>
 #include <TFE_DarkForces/util.h>
 #include <TFE_DarkForces/hud.h>
@@ -390,6 +393,11 @@ namespace TFE_DarkForces
 
 	void escapeMenu_draw(JBool drawMouse, JBool drawBackground)
 	{
+#ifdef __ANDROID__
+		// Mobile tap-to-position mode hides the cursor (the finger replaces it).
+		if (menu_getCursorHidden()) { drawMouse = JFALSE; }
+#endif
+
 		// TFE Note: handle GPU drawing differently, though the UI update is exactly the same.
 		if (TFE_Jedi::getSubRenderer() == TSR_CLASSIC_GPU)
 		{
@@ -453,7 +461,12 @@ namespace TFE_DarkForces
 			}
 
 			// Draw the mouse.
-			blitDeltaFrame(&s_cursor, s_emState.cursorPos.x, s_emState.cursorPos.z, s_emState.framebuffer);
+#ifdef __ANDROID__
+			if (drawMouse)	// Honour tap-to-position cursor hiding (other paths already gate on drawMouse).
+#endif
+			{
+				blitDeltaFrame(&s_cursor, s_emState.cursorPos.x, s_emState.cursorPos.z, s_emState.framebuffer);
+			}
 		}
 		else
 		{
