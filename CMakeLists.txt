@@ -76,7 +76,7 @@ if(ENABLE_TFE)
 		target_include_directories(tfe PRIVATE ${CLIBS_DIR})
 		target_include_directories(tfe PRIVATE ${CLIBS_DIR}/alpha)
 		target_include_directories(tfe PRIVATE ${TOUCH_CONTROLS_DIR})
-		target_link_libraries(tfe PRIVATE SDL2 SDL2_image touchcontrols log GLESv3)
+		target_link_libraries(tfe PRIVATE SDL2 SDL2_image touchcontrols saffal log GLESv3)
 		target_sources(tfe PRIVATE
 			"${CMAKE_CURRENT_SOURCE_DIR}/TheForceEngine/mobile/game_interface.cpp"
 			"${CLIBS_DIR}/alpha/android_jni.cpp"

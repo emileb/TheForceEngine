@@ -10,7 +10,11 @@ enum MidiDeviceType
 	MIDI_TYPE_SYSTEM,	// System midi device (hardware, midi server, GM midi on Windows).
 #endif
 	MIDI_TYPE_COUNT,
+#ifdef __ANDROID__
+	MIDI_TYPE_DEFAULT = MIDI_TYPE_SF2
+#else
 	MIDI_TYPE_DEFAULT = MIDI_TYPE_OPL3
+#endif
 };
 
 namespace TFE_Audio

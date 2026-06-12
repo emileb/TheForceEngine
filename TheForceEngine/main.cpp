@@ -84,6 +84,10 @@ static u32  s_monitorWidth  = 1280;
 static u32  s_monitorHeight = 720;
 static char s_screenshotTime[TFE_MAX_PATH];
 static s32  s_startupGame = -1;
+// Command-line override for the game source-data path (--gamePath <dir>). Used on
+// Android to point the engine at secondary/scoped storage so SAFFAL can intercept
+// the file access. Empty = no override; the autodetected settings path is used.
+static char s_sourcePathOverride[TFE_MAX_PATH] = {0};
 static IGame* s_curGame = nullptr;
 static const char* s_loadRequestFilename = nullptr;
 
@@ -553,7 +557,17 @@ int main(int argc, char* argv[])
 	// Get the current game.
 	const TFE_Game* game = TFE_Settings::getGame();
 	const TFE_GameHeader* gameHeader = TFE_Settings::getGameHeader(game->game);
-	TFE_Paths::setPath(PATH_SOURCE_DATA, gameHeader->sourcePath);
+	// A --gamePath override (e.g. Android secondary/scoped storage) takes priority
+	// over the autodetected settings path so SAFFAL can intercept the file access.
+	if (s_sourcePathOverride[0])
+	{
+		TFE_Paths::setPath(PATH_SOURCE_DATA, s_sourcePathOverride);
+		TFE_System::logWrite(LOG_MSG, "CommandLine", "Game source path override: %s", s_sourcePathOverride);
+	}
+	else
+	{
+		TFE_Paths::setPath(PATH_SOURCE_DATA, gameHeader->sourcePath);
+	}
 	TFE_Paths::setPath(PATH_EMULATOR, gameHeader->emulatorPath);
 	TFE_Paths::setRemasterDocsPath(game->id);
 
@@ -1079,6 +1093,20 @@ void parseOption(const char* name, const std::vector<const char*>& values, bool 
 			if (!strcasecmp(gameToLoad, "dark"))
 			{
 				s_startupGame = Game_Dark_Forces;
+			}
+		}
+		else if (strcasecmp(name, "gamePath") == 0 && values.size() >= 1)	// Override the game source-data path.
+		{
+			// --gamePath /sdcard/.../TFE
+			strncpy(s_sourcePathOverride, values[0], TFE_MAX_PATH - 1);
+			s_sourcePathOverride[TFE_MAX_PATH - 1] = 0;
+			FileUtil::fixupPath(s_sourcePathOverride);
+			// PATH_SOURCE_DATA is concatenated with file names directly, so it must end in a slash.
+			const size_t len = strlen(s_sourcePathOverride);
+			if (len && s_sourcePathOverride[len - 1] != '/' && len < TFE_MAX_PATH - 1)
+			{
+				s_sourcePathOverride[len] = '/';
+				s_sourcePathOverride[len + 1] = 0;
 			}
 		}
 		else if (strcasecmp(name, "nosound") == 0)

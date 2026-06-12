@@ -73,7 +73,11 @@ struct TFE_Settings_Graphics
 	bool  forceGouraudShading = false;
 	bool  overrideLighting = false;
 	bool  useSmoothDeltaTime = true;
+#ifdef __ANDROID__
+	s32   frameRateLimit = 60;
+#else
 	s32   frameRateLimit = 240;
+#endif
 	f32   brightness = 1.0f;
 	f32   contrast = 1.0f;
 	f32   saturation = 1.0f;

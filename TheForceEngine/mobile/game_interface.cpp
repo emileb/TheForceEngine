@@ -44,7 +44,7 @@ static float s_lookYawMouse   = 0.0f, s_lookYawJoy   = 0.0f;
 
 // Look sensitivities. Input deltas from the touch layer are normalised; these
 // scale them to pixel units that MouseMove() forwards to SDL_InjectMouse().
-static const float ANDROID_LOOK_MOUSE_X_SCALE = 1000.0f;
+static const float ANDROID_LOOK_MOUSE_X_SCALE = 1500.0f;
 static const float ANDROID_LOOK_MOUSE_Y_SCALE =  800.0f;
 // Joystick-mode look is applied every frame while the stick is held, so the per-frame
 // emit needs to be much smaller. Roughly matches iortcw's "look_yaw_joy * 6" at 60Hz.
@@ -346,7 +346,7 @@ touchscreemode_t PortableGetScreenMode()
     {
         case TFE_DarkForces::DF_SUB_STARTUP_CUTSCENE:
         case TFE_DarkForces::DF_SUB_CUTSCENE:
-            return TS_MENU;
+            return TS_BLANK;
 
         case TFE_DarkForces::DF_SUB_AGENT_MENU:
         case TFE_DarkForces::DF_SUB_BRIEFING:
