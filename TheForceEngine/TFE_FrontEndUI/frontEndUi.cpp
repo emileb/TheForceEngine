@@ -47,6 +47,16 @@
 using namespace TFE_Input;
 using namespace TFE_Audio;
 
+#if __ANDROID__
+// The live SDL surface size in pixels, pushed from SDLOpenTouch.surfaceChanged() via
+// NativeLib.setScreenSize(). Unlike the device resolution it excludes the on-screen
+// navigation bar, so it is what ImGui actually renders into. See getUiDisplayInfo().
+extern "C" {
+extern int mobile_screen_width;
+extern int mobile_screen_height;
+}
+#endif
+
 namespace TFE_FrontEndUI
 {
 	struct UiImage
@@ -590,7 +600,7 @@ namespace TFE_FrontEndUI
 		ImGui::End();
 		ImGui::PopFont();
 	}
-		
+
 	void setCurrentGame(IGame* game)
 	{
 		s_game = game;
@@ -601,12 +611,29 @@ namespace TFE_FrontEndUI
 		return s_game;
 	}
 
+	// Display size to lay the ImGui frontend out against. The menus render into the SDL
+	// surface, which on Android excludes the navigation bar, but getDisplayInfo() reports
+	// the full device resolution; using that pushes the menus' right/bottom edge and the
+	// scrollbar under the nav bar / off the visible surface. mobile_screen_* is the live
+	// surface size, so prefer it. Desktop (and any pre-surface state) uses getDisplayInfo().
+	static void getUiDisplayInfo(DisplayInfo* info)
+	{
+		TFE_RenderBackend::getDisplayInfo(info);
+#if __ANDROID__
+		if (mobile_screen_width > 0 && mobile_screen_height > 0)
+		{
+			info->width  = (u32)mobile_screen_width;
+			info->height = (u32)mobile_screen_height;
+		}
+#endif
+	}
+
 	void draw(bool drawFrontEnd, bool noGameData, bool setDefaults, bool showFps)
 	{
 		const u32 windowInvisFlags = ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings;
 
 		DisplayInfo display;
-		TFE_RenderBackend::getDisplayInfo(&display);
+		getUiDisplayInfo(&display);
 		u32 w = display.width;
 		u32 h = display.height;
 		u32 menuWidth = 156;
@@ -707,7 +734,7 @@ namespace TFE_FrontEndUI
 			if (s_appState == APP_STATE_SET_DEFAULTS)
 			{
 				DisplayInfo displayInfo;
-				TFE_RenderBackend::getDisplayInfo(&displayInfo);
+				getUiDisplayInfo(&displayInfo);
 
 				bool active = true;
 				ImGui::PushFont(s_dialogFont);
@@ -1774,7 +1801,7 @@ namespace TFE_FrontEndUI
 
 		// Create the current display info to adjust menu sizes.
 		DisplayInfo displayInfo;
-		TFE_RenderBackend::getDisplayInfo(&displayInfo);
+		getUiDisplayInfo(&displayInfo);
 
 		f32 leftColumn = displayInfo.width < 1200 ? 196.0f*s_uiScale : 256.0f*s_uiScale;
 		f32 rightColumn = leftColumn + ((f32)TFE_SaveSystem::SAVE_IMAGE_WIDTH + 32.0f)*s_uiScale;
@@ -2103,7 +2130,7 @@ namespace TFE_FrontEndUI
 
 		// Create the current display info to adjust menu sizes.
 		DisplayInfo displayInfo;
-		TFE_RenderBackend::getDisplayInfo(&displayInfo);
+		getUiDisplayInfo(&displayInfo);
 
 		f32 leftColumn = displayInfo.width < 1200 ? 196.0f * s_uiScale : 256.0f * s_uiScale;
 		f32 rightColumn = leftColumn + ((f32)TFE_SaveSystem::SAVE_IMAGE_WIDTH + 32.0f) * s_uiScale;
@@ -3102,7 +3129,7 @@ namespace TFE_FrontEndUI
 		if (s_resIndex == TFE_ARRAYSIZE(c_resolutionDim))
 		{
 			DisplayInfo displayInfo;
-			TFE_RenderBackend::getDisplayInfo(&displayInfo);
+			getUiDisplayInfo(&displayInfo);
 			graphics->gameResolution.x = displayInfo.width;
 			graphics->gameResolution.z = displayInfo.height;
 			graphics->widescreen = true;
@@ -4075,7 +4102,7 @@ namespace TFE_FrontEndUI
 	void setSettingsTemplate(SettingsTemplate temp)
 	{
 		DisplayInfo displayInfo;
-		TFE_RenderBackend::getDisplayInfo(&displayInfo);
+		getUiDisplayInfo(&displayInfo);
 
 		s_inputConfig = inputMapping_get();
 		TFE_Settings_Game* gameSettings = TFE_Settings::getGameSettings();
