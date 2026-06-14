@@ -40,9 +40,16 @@ void TouchInterface::mouseMove(int action, float x, float y, float mouse_x, floa
     float menuOffsetX = 0;
     bool inGameMenu = PortableInGameMenu(&menuOffsetX);
 
-    // Tap-to-position only applies in the DF in-game menus and when the user has it
-    // enabled; otherwise (including all ImGui menus) fall back to relative drag.
-    bool tapMode = inGameMenu && PortableGetMouseTapMode();
+    // The ImGui frontend's main menu now uses large image buttons, so tap-to-press
+    // them like the DOS menus. Its config/mods/manual sub-screens keep small widgets
+    // and stay on relative drag (PortableFrontendMenu() is false for them). ImGui
+    // draws in full window pixels, so no pillarbox offset (menuOffsetX stays 0).
+    bool frontendMenu = PortableFrontendMenu();
+
+    // The frontend main menu's big buttons are always tap-to-press. The DF in-game
+    // menus follow the user's tap-mode toggle; everything else (the small ImGui
+    // sub-screens) stays on relative drag.
+    bool tapMode = frontendMenu || (inGameMenu && PortableGetMouseTapMode());
 
     float absX = x * mobile_screen_width - menuOffsetX;
     float absY = y * mobile_screen_height;
@@ -386,9 +393,9 @@ void TouchInterface::blankButton(int state, int code)
 }
 
 // TFE has no force-select panel; the base handling is all it needs. This
-// definition exists only because the shared psi/touch_interface.h declares
-// gameButton as an override (used by the OpenJK build's force panel), which
-// shadows the base and so requires a definition in every engine that uses it.
+// definition exists only because this engine's touch_interface.h (copied from
+// the OpenJK variant, where the force panel uses it) still declares gameButton as
+// an override, which shadows the base and so requires a definition here.
 void TouchInterface::gameButton(int state, int code)
 {
     TouchInterfaceBase::gameButton(state, code);

@@ -53,6 +53,9 @@ namespace TFE_FrontEndUI
 	bool shouldClearScreen();
 
 	bool isConfigMenuOpen();
+#ifdef __ANDROID__
+	bool isMainMenuOpen();
+#endif
 	bool isConsoleOpen();
 	bool isConsoleAnimating();
 	void logToConsole(const char* str);

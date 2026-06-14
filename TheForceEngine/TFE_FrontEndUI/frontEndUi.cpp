@@ -430,6 +430,17 @@ namespace TFE_FrontEndUI
 		return (s_appState == APP_STATE_MENU) && (s_subUI == FEUI_CONFIG);
 	}
 
+#ifdef __ANDROID__
+	// True only on the top-level main menu (the large Start/Settings/... image
+	// buttons), not the config/mods/manual sub-screens. The Android touch layer uses
+	// this to enable tap-to-press on those big buttons while leaving the small-widget
+	// sub-screens on relative drag.
+	bool isMainMenuOpen()
+	{
+		return (s_appState == APP_STATE_MENU) && (s_subUI == FEUI_NONE);
+	}
+#endif
+
 	void setMenuReturnState(AppState state)
 	{
 		s_menuRetState = state;
@@ -644,9 +655,26 @@ namespace TFE_FrontEndUI
 			const s32 logoWidth = s_logoGpuImage.width   * h / logoScale;
 			const s32 titleHeight = s_titleGpuImage.height * h / logoScale;
 			const s32 titleWidth = s_titleGpuImage.width  * h / logoScale;
+			const s32 topOffset = titlePosY * h / posScale;
+#if __ANDROID__
+			// The main-menu buttons are authored for a 2160p screen; the h/2160 scale
+			// leaves them small and fiddly to tap on a phone. Grow them to fill the band
+			// between the logo and the bottom margin so they fill more of the screen and
+			// make comfortable touch targets (the Android touch layer also makes them
+			// tap-to-press). The buttons stack with a fixed 24px gap and a 4px end pad
+			// (see menuHeight below), so size from the available height rather than a flat
+			// multiplier, which would overflow into the logo on smaller screens. Never
+			// shrink below the authored size, nor grow past 2x so it stays sensible on
+			// very tall screens. Width follows the button image's aspect ratio.
+			const s32 baseTextHeight = s_buttonNormal[0].height * h / logoScale;
+			const s32 availHeight    = (s32)h - 2 * topOffset - logoHeight;
+			const s32 fitTextHeight  = (availHeight - 4) / (s32)s_menuItemCount - 24;
+			const s32 textHeight = max(baseTextHeight, min(fitTextHeight, baseTextHeight * 2));
+			const s32 textWidth  = textHeight * s_buttonNormal[0].width / s_buttonNormal[0].height;
+#else
 			const s32 textHeight = s_buttonNormal[0].height * h / logoScale;
 			const s32 textWidth = s_buttonNormal[0].width * h / logoScale;
-			const s32 topOffset = titlePosY * h / posScale;
+#endif
 
 			// Title
 			bool titleActive = true;

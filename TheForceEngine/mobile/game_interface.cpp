@@ -446,6 +446,19 @@ int PortableInGameMenu(float* mouseOffsetX)
     return 1;
 }
 
+// True only while the ImGui frontend's top-level main menu (the large
+// Start/Settings/... image buttons) is showing — not the config/mods/manual
+// sub-screens, which keep their small widgets and stay on relative drag. The
+// touch layer uses this to enable absolute tap-to-press on the big main-menu
+// buttons, complementing PortableInGameMenu() for the DOS-style in-mission menus.
+// No pillarbox offset is needed: ImGui draws in full window pixels, the same
+// space the absolute mouse position uses.
+int PortableFrontendMenu()
+{
+    if (TFE_FrontEndUI::isConsoleOpen()) { return 0; }
+    return TFE_FrontEndUI::isMainMenuOpen() ? 1 : 0;
+}
+
 
 
 // Called from the player input path in TFE_DarkForces/player.cpp once per frame.
