@@ -417,7 +417,9 @@ void TouchInterface::newFrame()
     }
 
 
-        if((screenMode == TS_MENU) && (useMouse || gotMouseMove))
+        // The frontend main menu is tap-to-press, so the on-screen mouse we render
+        // isn't used there (the finger replaces it) — keep it hidden.
+        if((screenMode == TS_MENU) && (useMouse || gotMouseMove) && !PortableFrontendMenu())
             controlsContainer.showMouse(true);
         else
         {
