@@ -105,6 +105,23 @@ namespace TFE_Paths
 	bool setProgramDataPath(const char *append)
 	{
 		s_systemPaths.push_back(getPath(PATH_PROGRAM));
+#ifdef __ANDROID__
+		// On Android all writable user data (settings, saves, screenshots,
+		// pilot configs, ...) must live under the app's user_files folder,
+		// exposed via the USER_FILES env var, in a per-engine "tfe" subfolder -
+		// never in the read-only game/program directory. The program directory
+		// is still kept in s_systemPaths above so the engine's support data
+		// (UI_Text, messages, external defs) is still found there.
+		{
+			const char* userFiles = getenv("USER_FILES");
+			char path[TFE_MAX_PATH];
+			snprintf(path, TFE_MAX_PATH, "%s/%s/", (userFiles && userFiles[0]) ? userFiles : ".", "tfe");
+			s_paths[PATH_PROGRAM_DATA] = path;
+			FileUtil::makeDirectory(path);
+			s_systemPaths.push_back(getPath(PATH_PROGRAM_DATA));
+			return true;
+		}
+#endif
 		if (isPortableInstall())
 		{
 			s_paths[PATH_PROGRAM_DATA] = s_paths[PATH_PROGRAM];
@@ -131,6 +148,15 @@ namespace TFE_Paths
 
 	bool setUserDocumentsPath(const char *append)
 	{
+#ifdef __ANDROID__
+		// User documents share the USER_FILES/tfe location set up above. The cwd
+		// is deliberately left at the program/game directory (unlike desktop),
+		// since that is where the engine's relative support data is loaded from.
+		assert(!s_paths[PATH_PROGRAM_DATA].empty());
+		s_paths[PATH_USER_DOCUMENTS] = s_paths[PATH_PROGRAM_DATA];
+		s_systemPaths.push_back(getPath(PATH_USER_DOCUMENTS));
+		return true;
+#endif
 		if (isPortableInstall())
 		{
 			s_paths[PATH_USER_DOCUMENTS] = s_paths[PATH_PROGRAM];
