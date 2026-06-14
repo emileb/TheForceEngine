@@ -102,6 +102,9 @@ namespace TFE_RenderBackend
 	void startGifRecording(const char* path, bool skipCountdown = false);
 	void stopGifRecording();
 	void captureScreenToMemory(u32* mem);
+	// Dimensions of the image produced by captureScreenToMemory(). Usually the window size, but on
+	// GLES it is the virtual-display size (the thumbnail is rebuilt from the CPU framebuffer there).
+	void getCaptureDimensions(u32* width, u32* height);
 
 	void resize(s32 width, s32 height);
 	s32  getDisplayCount();

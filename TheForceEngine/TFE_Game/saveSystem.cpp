@@ -49,10 +49,11 @@ namespace TFE_SaveSystem
 
 	void saveHeader(Stream* stream, const char* saveName)
 	{
-		// Generate a screenshot.
-		DisplayInfo displayInfo;
-		TFE_RenderBackend::getDisplayInfo(&displayInfo);
-		size_t size = displayInfo.width * displayInfo.height * 4;
+		// Generate a screenshot. The capture dimensions are not necessarily the window size (on GLES
+		// the thumbnail is rebuilt from the virtual-display-sized CPU framebuffer), so query them.
+		u32 captureWidth = 0, captureHeight = 0;
+		TFE_RenderBackend::getCaptureDimensions(&captureWidth, &captureHeight);
+		size_t size = (size_t)captureWidth * captureHeight * 4;
 		if (size > s_imageBufferSize[0])
 		{
 			s_imageBuffer[0] = (u32*)realloc(s_imageBuffer[0], size);
@@ -64,7 +65,7 @@ namespace TFE_SaveSystem
 		u32 pngSize = 0;
 		if (png)
 		{
-			pngSize = (u32)TFE_Image::writeImageToMemory(png, displayInfo.width, displayInfo.height,
+			pngSize = (u32)TFE_Image::writeImageToMemory(png, captureWidth, captureHeight,
 								 SAVE_IMAGE_WIDTH, SAVE_IMAGE_HEIGHT,
 								 s_imageBuffer[0]);
 		}

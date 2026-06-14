@@ -66,6 +66,26 @@ namespace TFE_RenderBackend
 	static char s_screenshotPath[TFE_MAX_PATH];
 	static bool s_screenshotQueued = false;
 
+#ifdef USE_GLES
+	// Save thumbnails: a CPU snapshot of the software renderer's last indexed (8-bit palette)
+	// framebuffer, taken in updateVirtualDisplay(). Used by captureScreenToMemory() because the GL
+	// back buffer cannot be read back reliably on Android (see captureScreenToMemory()).
+	static u8*    s_thumbIndices = nullptr;
+	static size_t s_thumbIndicesCapacity = 0;
+	static u32    s_thumbWidth = 0;
+	static u32    s_thumbHeight = 0;
+
+	// Save thumbnails for the GPU (hardware) renderer: a CPU RGBA snapshot of the virtual-display
+	// render-target FBO, taken in swap() while the FBO is still fresh. On Android the FBO's color is
+	// NOT preserved across SDL_GL_SwapWindow (tile memory is discarded), so reading it back the next
+	// frame in captureScreenToMemory() returns black - hence the snapshot-at-render-time approach,
+	// mirroring the software path above. Throttled, since a thumbnail need not be the exact frame.
+	static u32*   s_thumbRGBA = nullptr;
+	static size_t s_thumbRGBACapacity = 0;
+	static u32    s_thumbRGBAWidth = 0;
+	static u32    s_thumbRGBAHeight = 0;
+#endif
+
 	static WindowState m_windowState;
 	static void* m_window;
 	static DynamicTexture* s_virtualDisplay = nullptr;
@@ -406,8 +426,45 @@ namespace TFE_RenderBackend
 		memcpy(s_clearColor, color, sizeof(f32) * 4);
 	}
 		
+#ifdef USE_GLES
+	// Snapshot the GPU (hardware) renderer's virtual-display FBO to a CPU buffer for save thumbnails.
+	// Must run while the FBO is still fresh (Android discards its tile memory across the swap), so it
+	// is called from swap() before the buffers are exchanged. Throttled - a thumbnail need not be the
+	// exact current frame - to keep the per-frame readback cost negligible.
+	static void snapshotThumbnailGPU()
+	{
+		if (!s_useRenderTarget || !s_virtualRenderTarget || !s_virtualWidth || !s_virtualHeight) { return; }
+
+		static u32 s_thumbFrame = 0;
+		if ((s_thumbFrame++ & 7) != 0) { return; }
+
+		const u32    count = s_virtualWidth * s_virtualHeight;
+		const size_t bytes = (size_t)count * 4;
+		if (bytes > s_thumbRGBACapacity)
+		{
+			s_thumbRGBA = (u32*)realloc(s_thumbRGBA, bytes);
+			s_thumbRGBACapacity = s_thumbRGBA ? bytes : 0;
+		}
+		if (!s_thumbRGBA) { return; }
+
+		s_virtualRenderTarget->bind();
+		if (!OpenGL_Caps::isGLES2()) { glReadBuffer(GL_COLOR_ATTACHMENT0); }
+		glPixelStorei(GL_PACK_ALIGNMENT, 4);
+		glReadPixels(0, 0, s_virtualWidth, s_virtualHeight, GL_RGBA, GL_UNSIGNED_BYTE, s_thumbRGBA);
+		RenderTarget::unbind();
+		glViewport(0, 0, m_windowState.width, m_windowState.height);
+
+		s_thumbRGBAWidth  = s_virtualWidth;
+		s_thumbRGBAHeight = s_virtualHeight;
+	}
+#endif
+
 	void swap(bool blitVirtualDisplay)
 	{
+#ifdef USE_GLES
+		// Capture the GPU-renderer FBO for save thumbnails while it is still valid (pre-swap).
+		if (blitVirtualDisplay) { snapshotThumbnailGPU(); }
+#endif
 		// Blit the texture or render target to the screen.
 		if (blitVirtualDisplay) { drawVirtualDisplay(); }
 		else { glClear(GL_COLOR_BUFFER_BIT); }
@@ -527,7 +584,60 @@ namespace TFE_RenderBackend
 
 	void captureScreenToMemory(u32* mem)
 	{
+#ifdef USE_GLES
+		// On Android the GL back buffer is undefined after SDL_GL_SwapWindow (EGL_BUFFER_DESTROYED)
+		// and GL_FRONT cannot be read, so a GL read here returns garbage. Instead, rebuild the image
+		// on the CPU from the snapshot of the software renderer's indexed framebuffer (captured in
+		// updateVirtualDisplay) using the current palette - this is exactly what the blit shader shows,
+		// is always valid, and the buffer is already top-down so no flip is needed.
+		// Dimensions come from getCaptureDimensions() (virtual display size, not the window).
+		if (!s_useRenderTarget && s_thumbIndices && s_thumbWidth && s_thumbHeight)
+		{
+			const u32 count = s_thumbWidth * s_thumbHeight;
+			for (u32 i = 0; i < count; i++)
+			{
+				mem[i] = s_paletteCpu[s_thumbIndices[i]] | 0xFF000000;
+			}
+			return;
+		}
+
+		// OpenGL (GPU) renderer: serve the CPU snapshot of the render-target FBO taken in swap().
+		// The FBO cannot be read here: on Android its color is discarded across SDL_GL_SwapWindow, so
+		// by this point (top of the next frame) it reads back black. snapshotThumbnailGPU() copies it
+		// while still fresh. glReadPixels row 0 is texture v0 = window-top, so it is already top-down
+		// (no flip needed, same as the software path above).
+		if (s_useRenderTarget && s_thumbRGBA && s_thumbRGBAWidth && s_thumbRGBAHeight)
+		{
+			const u32 count = s_thumbRGBAWidth * s_thumbRGBAHeight;
+			for (u32 i = 0; i < count; i++)
+			{
+				mem[i] = s_thumbRGBA[i] | 0xFF000000;
+			}
+			return;
+		}
+#endif
 		s_screenCapture->captureFrontBufferToMemory(mem);
+	}
+
+	void getCaptureDimensions(u32* width, u32* height)
+	{
+#ifdef USE_GLES
+		// captureScreenToMemory() produces the virtual-display-sized image on GLES.
+		if (!s_useRenderTarget && s_thumbIndices && s_thumbWidth && s_thumbHeight)
+		{
+			*width  = s_thumbWidth;
+			*height = s_thumbHeight;
+			return;
+		}
+		if (s_useRenderTarget && s_thumbRGBA && s_thumbRGBAWidth && s_thumbRGBAHeight)
+		{
+			*width  = s_thumbRGBAWidth;
+			*height = s_thumbRGBAHeight;
+			return;
+		}
+#endif
+		*width  = m_windowState.width;
+		*height = m_windowState.height;
 	}
 
 	void queueScreenshot(const char* screenshotPath)
@@ -890,6 +1000,24 @@ namespace TFE_RenderBackend
 		if (s_virtualDisplay)
 		{
 			s_virtualDisplay->update(buffer, size);
+#ifdef USE_GLES
+			// Snapshot the indexed CPU framebuffer for save thumbnails (see captureScreenToMemory()).
+			// Only the 8-bit (GPU color-convert) path is handled; that is what the classic renderer uses.
+			if (size == (size_t)s_virtualWidth * s_virtualHeight)
+			{
+				if (size > s_thumbIndicesCapacity)
+				{
+					s_thumbIndices = (u8*)realloc(s_thumbIndices, size);
+					s_thumbIndicesCapacity = s_thumbIndices ? size : 0;
+				}
+				if (s_thumbIndices)
+				{
+					memcpy(s_thumbIndices, buffer, size);
+					s_thumbWidth  = s_virtualWidth;
+					s_thumbHeight = s_virtualHeight;
+				}
+			}
+#endif
 		}
 	}
 
