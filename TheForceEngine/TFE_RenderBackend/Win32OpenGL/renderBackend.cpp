@@ -172,7 +172,6 @@ namespace TFE_RenderBackend
 
 		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, true);
 
-
 		if (s_isMacOS) {
 			// macOS specific OpenGL context setup
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -180,7 +179,7 @@ namespace TFE_RenderBackend
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
 		}
-
+        
 		TFE_System::logWrite(LOG_MSG, "RenderBackend", "SDL Videodriver: %s", SDL_GetCurrentVideoDriver());
 		SDL_Window* window = SDL_CreateWindow(state.name, x, y, state.width, state.height, windowFlags);
 		if (!window)
@@ -207,7 +206,13 @@ namespace TFE_RenderBackend
                 SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
                 SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
                 SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-                SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+                // Do NOT request a stencil buffer (SDL_GL_STENCIL_SIZE) on Android/GLES. It selects
+                // an EGLConfig whose recreated window surface cannot be re-matched to the preserved
+                // EGLContext after a minimize/restore, so SDL's android_egl_context_restore() fails
+                // its SDL_GL_MakeCurrent (EGL_BAD_MATCH), silently builds a NEW context and pushes
+                // SDL_RENDER_DEVICE_RESET - losing every GL object (game + ImGui go black, only the
+                // immediate-mode touch overlay survives). The game renders into its own FBOs and only
+                // blits to the back buffer, so no default-framebuffer stencil is needed here.
 				SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 				SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, esMajors[i]);
 				SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
