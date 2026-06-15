@@ -14,6 +14,7 @@
 #include <TFE_FileSystem/paths.h>
 #include <TFE_Polygon/polygon.h>
 #include <TFE_RenderBackend/renderBackend.h>
+#include <TFE_RenderBackend/Win32OpenGL/openGL_Caps.h>
 #include <TFE_Jedi/Renderer/jediRenderer.h>
 #include <TFE_Input/inputMapping.h>
 #include <TFE_Settings/settings.h>
@@ -1129,6 +1130,18 @@ void parseOption(const char* name, const std::vector<const char*>& values, bool 
 		else if (strcasecmp(name, "exit_after_replay") == 0)
 		{
 			TFE_Settings::getTempSettings()->exit_after_replay = true;
+		}
+		else if (strcasecmp(name, "force_gles20") == 0)
+		{
+			// --force_gles20: force the GLES 2.0 fallback (software renderer + GPU blit only).
+			OpenGL_Caps::setForceGLESVersion(20);
+			TFE_System::logWrite(LOG_MSG, "CommandLine", "Forcing GLES 2.0 rendering mode.");
+		}
+		else if (strcasecmp(name, "force_gles30") == 0)
+		{
+			// --force_gles30: force the GLES 3.0 path (2D-texture buffer emulation, no texture buffers).
+			OpenGL_Caps::setForceGLESVersion(30);
+			TFE_System::logWrite(LOG_MSG, "CommandLine", "Forcing GLES 3.0 rendering mode.");
 		}
 	}
 }

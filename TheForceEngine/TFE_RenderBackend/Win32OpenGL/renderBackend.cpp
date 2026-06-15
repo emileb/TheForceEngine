@@ -179,7 +179,7 @@ namespace TFE_RenderBackend
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
 		}
-        
+
 		TFE_System::logWrite(LOG_MSG, "RenderBackend", "SDL Videodriver: %s", SDL_GetCurrentVideoDriver());
 		SDL_Window* window = SDL_CreateWindow(state.name, x, y, state.width, state.height, windowFlags);
 		if (!window)
@@ -196,10 +196,10 @@ namespace TFE_RenderBackend
 			// Request a GLES 3.0+ context first (the requested version is a minimum, so 3.1/3.2
 			// devices still get their highest context). If the device/driver cannot provide a 3.x
 			// context, fall back to GLES 2.0, which runs the software renderer + blit path only.
-			// Set TFE_FORCE_GLES20 to 1 to force the GLES 2.0 fallback for testing on 3.x hardware.
-			#define TFE_FORCE_GLES20 0
+			// Pass --force_gles20 on the command line to force the GLES 2.0 fallback on 3.x hardware.
+			const bool forceGLES20 = (OpenGL_Caps::getForceGLESVersion() == 20);
 			const int esMajors[] = { 3, 2 };
-			for (int i = TFE_FORCE_GLES20 ? 1 : 0; i < 2 && !context; i++)
+			for (int i = forceGLES20 ? 1 : 0; i < 2 && !context; i++)
 			{
                 SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
                 SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);

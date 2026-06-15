@@ -15,6 +15,13 @@ enum DeviceTier
 
 namespace OpenGL_Caps
 {
+	// Force the renderer down to a specific GLES feature level (set from the command line before
+	// context creation / capability query). 0 = auto-detect the highest capable mode (default),
+	// 20 = force the GLES 2.0 fallback (software renderer + GPU blit only), 30 = force the GLES 3.0
+	// path (2D-texture buffer emulation, no native texture buffers). Has no effect on desktop GL.
+	void setForceGLESVersion(s32 version);
+	s32 getForceGLESVersion();
+
 	void queryCapabilities();
 
 	bool supportsPbo();

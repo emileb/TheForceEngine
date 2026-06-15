@@ -31,11 +31,23 @@ namespace OpenGL_Caps
 	static f32 m_maxAnisotropy = 1.0f;
 	static s32 m_maxClipDistances = 0;
 	static bool m_isGLES2 = false;
+	// 0 = auto, 20 = force GLES 2.0, 30 = force GLES 3.0 (see openGL_Caps.h).
+	static s32 m_forceGLESVersion = 0;
 
 	enum SpecMinimum
 	{
 		GLSPEC_MAX_TEXTURE_BUFFER_SIZE_MIN = 65536,
 	};
+
+	void setForceGLESVersion(s32 version)
+	{
+		m_forceGLESVersion = version;
+	}
+
+	s32 getForceGLESVersion()
+	{
+		return m_forceGLESVersion;
+	}
 
 	void queryCapabilities()
 	{
@@ -61,6 +73,15 @@ namespace OpenGL_Caps
 				if (p) { p += 3; sscanf(p, "%d.%d", &gl_maj, &gl_min); }
 			}
 		}
+
+		// --force_gles20 / --force_gles30: clamp the detected version so the rest of the capability
+		// detection behaves as if the device were that GLES level, even when the driver hands back a
+		// higher context (Android drivers commonly return an ES 3.x context/version string even when a
+		// 2.0 context was requested). This is what actually demotes the device tier and locks the
+		// engine to the matching path - requesting the lower context alone is not enough.
+		if (m_forceGLESVersion == 20)      { gl_maj = 2; gl_min = 0; }
+		else if (m_forceGLESVersion == 30) { gl_maj = 3; gl_min = 0; }
+
 		m_isGLES2 = (gl_maj > 0 && gl_maj < 3);
 #endif
 
@@ -69,11 +90,11 @@ namespace OpenGL_Caps
 		// Texture buffer objects (samplerBuffer) are core in GLES 3.2 / GL 3.1+, and otherwise
 		// available on GLES 3.1 via GL_EXT_texture_buffer (or GL_OES_texture_buffer). They are
 		// required by the GPU renderer to upload the sector/wall/texture tables.
-		// Set TFE_FORCE_GLES30 to 1 to force the GLES 3.0 (2D-texture) buffer emulation path for
-		// testing, even on hardware that natively supports texture buffers.
-		#define TFE_FORCE_GLES30 0
+		// Pass --force_gles30 on the command line to force the GLES 3.0 (2D-texture) buffer emulation
+		// path, even on hardware that natively supports texture buffers.
+		const bool forceGLES30 = (m_forceGLESVersion == 30);
 		bool texBufferCore = (gl_maj > 3) || (gl_maj == 3 && gl_min >= 2);
-		if (!TFE_FORCE_GLES30 && (texBufferCore ||
+		if (!forceGLES30 && (texBufferCore ||
 			SDL_GL_ExtensionSupported("GL_EXT_texture_buffer") ||
 			SDL_GL_ExtensionSupported("GL_OES_texture_buffer") ||
 			SDL_GL_ExtensionSupported("GL_ARB_texture_buffer_object")))
