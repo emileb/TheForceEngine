@@ -71,6 +71,10 @@ if(ENABLE_TFE)
 
 	if(ANDROID)
 		target_compile_definitions(tfe PRIVATE ENGINE_NAME="theforceengine")
+		# Enables the guarded PortableSetMouseTapMode() call in the shared
+		# Clibs_OpenTouch touch_interface_base.cpp (this engine implements it).
+		set_source_files_properties("${CLIBS_DIR}/touch_interface_base.cpp"
+			PROPERTIES COMPILE_DEFINITIONS "GAME_HAS_MOUSE_TAP_MODE")
 		target_include_directories(tfe PRIVATE ${SDL2_ANDROID_INCLUDE_DIR})
 		target_include_directories(tfe PRIVATE ${SDL2_IMAGE_ANDROID_INCLUDE_DIR})
 		# The engine's own mobile/ provides touch_interface.h, so the shared Clibs
