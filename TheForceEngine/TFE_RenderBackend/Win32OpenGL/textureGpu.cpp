@@ -188,17 +188,31 @@ bool TextureGpu::createWithData(u32 width, u32 height, const void* buffer, MagFi
 #endif
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
 
-	f32 maxAniso = OpenGL_Caps::getMaxAnisotropy();
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter == MAG_FILTER_NONE ? GL_NEAREST : GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	if (OpenGL_Caps::supportsAniso())
+	if (magFilter == MAG_FILTER_NONE)
 	{
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, maxAniso);
+		// Point-sampled data texture (palette, colormap, lookup tables): no mipmaps and NEAREST min
+		// filter. These are only ever read with texelFetch / textureLod(lod 0), and some GLES drivers
+		// (notably PowerVR) mis-sample texelFetch on a mipmapped / LINEAR_MIPMAP min-filter texture,
+		// returning a filtered or wrong-mip value. That corrupted the colormap index remap -> wrong
+		// palette colors tracking the light bands. NEAREST + no mipmaps keeps the fetch exact.
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	}
-
-	glGenerateMipmap(GL_TEXTURE_2D);
+	else
+	{
+		f32 maxAniso = OpenGL_Caps::getMaxAnisotropy();
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		if (OpenGL_Caps::supportsAniso())
+		{
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, maxAniso);
+		}
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	return true;
