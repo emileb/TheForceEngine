@@ -29,6 +29,16 @@
 #pragma comment(lib, "sdl2.lib")
 #endif
 
+#if __ANDROID__
+extern "C"
+{
+	// Live SDL/GL surface size in real pixels, excluding the system navigation bar and any
+	// display cutout. The host updates these as the surface changes (rotation, nav-bar show/hide).
+	extern int mobile_screen_width;
+	extern int mobile_screen_height;
+}
+#endif
+
 #ifdef USE_GLES
 #include <dlfcn.h>
 
@@ -61,6 +71,25 @@ static void* LoadGLES2Proc(const char* name)
 namespace TFE_RenderBackend
 {
 	static const f32 c_tallScreenThreshold = 1.32f;	// 4:3 + epsilon.
+
+	// On Android the SDL "window" and the desktop display mode report the full panel
+	// resolution, but the GL surface we actually render into excludes the navigation bar and
+	// any display cutout. Sizing the viewport / virtual display against the full resolution
+	// pushes the game image off the visible surface (and skews the menu mouse mapping, which
+	// the touch layer does in mobile_screen_* space). mobile_screen_* is the live surface
+	// size the host gives us, so clamp the rendered/reported dimensions to it. Desktop and any
+	// pre-surface state (size still 0) are left untouched. Mirrors the override the ImGui
+	// frontend already applies in frontEndUi.cpp.
+	static void clampToAndroidSurface(u32& width, u32& height)
+	{
+#if __ANDROID__
+		if (mobile_screen_width > 0 && mobile_screen_height > 0)
+		{
+			width  = (u32)mobile_screen_width;
+			height = (u32)mobile_screen_height;
+		}
+#endif
+	}
 
 	// Screenshot stuff... needs to be refactored.
 	static char s_screenshotPath[TFE_MAX_PATH];
@@ -325,6 +354,8 @@ namespace TFE_RenderBackend
 	{
 		m_window = createWindow(state);
 		m_windowState = state;
+		// Render to the real surface, not the full panel (excludes nav bar / cutout on Android).
+		clampToAndroidSurface(m_windowState.width, m_windowState.height);
 		if (!m_window)
 			return false;
 
@@ -674,23 +705,27 @@ namespace TFE_RenderBackend
 	{
 		TFE_Settings_Window* windowSettings = TFE_Settings::getWindowSettings();
 
-		m_windowState.width = width;
-		m_windowState.height = height;
+		// SDL reports the full panel size here; clamp to the real surface (Android nav bar / cutout).
+		u32 w = (u32)width, h = (u32)height;
+		clampToAndroidSurface(w, h);
 
-		windowSettings->width = width;
-		windowSettings->height = height;
+		m_windowState.width = w;
+		m_windowState.height = h;
+
+		windowSettings->width = w;
+		windowSettings->height = h;
 		if (!(m_windowState.flags & WINFLAG_FULLSCREEN))
 		{
-			m_windowState.baseWindowWidth = width;
-			m_windowState.baseWindowHeight = height;
+			m_windowState.baseWindowWidth = w;
+			m_windowState.baseWindowHeight = h;
 
-			windowSettings->baseWidth = width;
-			windowSettings->baseHeight = height;
+			windowSettings->baseWidth = w;
+			windowSettings->baseHeight = h;
 		}
-		glViewport(0, 0, width, height);
+		glViewport(0, 0, w, h);
 		setupPostEffectChain(!s_useRenderTarget, s_bloomEnable);
 
-		s_screenCapture->resize(width, height);
+		s_screenCapture->resize(w, h);
 	}
 
 	void enumerateDisplays()
@@ -838,6 +873,9 @@ namespace TFE_RenderBackend
 
 		displayInfo->width = m_windowState.width;
 		displayInfo->height = m_windowState.height;
+		// Report the live surface size so consumers (postprocess blit scale, the menu mouse
+		// mapping, the renderer) stay in sync with the touch layer even between resizes.
+		clampToAndroidSurface(displayInfo->width, displayInfo->height);
 		displayInfo->refreshRate = (m_windowState.flags & WINFLAG_VSYNC) != 0 ? m_windowState.refreshRate : 0.0f;
 	}
 
