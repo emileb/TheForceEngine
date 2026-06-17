@@ -59,7 +59,7 @@ void TouchInterface::mouseMove(int action, float x, float y, float mouse_x, floa
         if(tapMode)
             MouseMoveAbsolute(absX, absY);
         else
-            MouseMove(mouse_x * mobile_screen_width, mouse_y * mobile_screen_height);
+            MouseMove(mouse_x * mobile_screen_width * 2.0, mouse_y * mobile_screen_height * 2.0);
     }
     else if(action == TOUCHMOUSE_TAP)
     {
@@ -111,14 +111,6 @@ void TouchInterface::createControls(std::string filesPath)
     touchcontrols::Button *b = new touchcontrols::Button("left_mouse", touchcontrols::RectF(23, 4, 26, 7), "left_mouse", PORT_ACT_MOUSE_LEFT);
     b->setAllowPassThrough(false);
     tcMenuMain->addControl(b);
-
-        b = new touchcontrols::Button("up_arrow", touchcontrols::RectF(0, 5, 2, 7), "arrow_up", PORT_ACT_MENU_UP);
-        b->setAllowPassThrough(false);
-        tcMenuMain->addControl(b);
-
-        b = new touchcontrols::Button("down_arrow", touchcontrols::RectF(0, 8, 2, 10), "arrow_down", PORT_ACT_MENU_DOWN);
-        b->setAllowPassThrough(false);
-        tcMenuMain->addControl(b);
 
 #if 0
     touchcontrols::Mouse *brightnessSlide = new touchcontrols::Mouse("slide_mouse", touchcontrols::RectF(24, 3, 26, 11), "brightness_slider");

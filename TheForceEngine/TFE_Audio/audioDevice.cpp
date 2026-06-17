@@ -4,6 +4,15 @@
 
 #include "audioDevice.h"
 
+#ifdef __ANDROID__
+// Set from Java via NativeLib.audioOverride() (see android_jni_inc.cpp). When
+// non-zero this overrides the SDL device buffer size so the host app can grow
+// the buffer and avoid audio stuttering. The device frequency is NOT overridden
+// here: TFE's mixer produces samples at a fixed rate (AUDIO_FREQ), so the SDL
+// device must be opened at that same rate or playback pitch would be wrong.
+extern int AUDIO_OVERRIDE_SAMPLES;
+#endif
+
 // Audio Output using SDL Audio API
 namespace TFE_AudioDevice
 {
@@ -92,6 +101,13 @@ namespace TFE_AudioDevice
 		specin.callback = callback;
 		specin.userdata = userData;
 		specin.samples = s_audioFrameSize;
+
+#ifdef __ANDROID__
+		// Larger device buffer keeps the audio from stuttering when the main
+		// thread is busy (e.g. while playing the startup video).
+		if (AUDIO_OVERRIDE_SAMPLES)
+			specin.samples = AUDIO_OVERRIDE_SAMPLES;
+#endif
 
 		TFE_System::logWrite(LOG_MSG, "Audio", "Starting up audio stream for device '%s'", dn);
 		if (s_outputDevice < 1)
