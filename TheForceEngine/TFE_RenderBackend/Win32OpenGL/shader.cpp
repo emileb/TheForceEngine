@@ -184,7 +184,14 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 	// GLES: build shader parts dynamically to inject version, extensions, and precision qualifiers.
 	// Texture buffers require a 3.1 baseline (#version 310 es + GL_EXT_texture_buffer); when they are
 	// unavailable we target #version 300 es and emulate buffers with 2D textures (the GLES 3.0 path).
-	const GLchar* glesVersion = OpenGL_Caps::supportsTextureBuffer() ? ShaderGL::c_glslVersionString[m_shaderVersion] : "#version 300 es\n";
+	const bool useTexBuffer = OpenGL_Caps::supportsTextureBuffer();
+	const GLchar* glesVersion = useTexBuffer ? ShaderGL::c_glslVersionString[m_shaderVersion] : "#version 300 es\n";
+	// 'noperspective' (GL_NV_shader_noperspective_interpolation) is only honored on the 3.1+
+	// (#version 310 es) shader path. Some drivers (e.g. Adreno) reject 'noperspective' as a reserved
+	// word under #version 300 es even with the extension enabled, which fails the model shaders. On
+	// the GLES 3.0 fallback (no texture buffers) use the no-op NOPERSPECTIVE define instead -
+	// perspective-correct interpolation, a negligible visual difference.
+	const bool useNoPersp = useTexBuffer && OpenGL_Caps::supportsNoPerspectiveInterpolation();
 	vertHandle = glCreateShader(GL_VERTEX_SHADER);
 	{
 		std::vector<const GLchar*> parts;
@@ -193,7 +200,7 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 			parts.push_back(s_ext_texture_buffer);
 		if (OpenGL_Caps::supportsClipping())
 			parts.push_back(s_ext_EXT_clip_cull_distance);
-		if (OpenGL_Caps::supportsNoPerspectiveInterpolation())
+		if (useNoPersp)
 		{
 			parts.push_back(s_ext_NV_noperspective);
 			parts.push_back(s_noperspective_define);
@@ -223,7 +230,7 @@ bool Shader::create(const char* vertexShaderGLSL, const char* fragmentShaderGLSL
 		parts.push_back(s_ext_OES_standard_derivatives);
 		if (OpenGL_Caps::supportsTextureBuffer())
 			parts.push_back(s_ext_texture_buffer);
-		if (OpenGL_Caps::supportsNoPerspectiveInterpolation())
+		if (useNoPersp)
 		{
 			parts.push_back(s_ext_NV_noperspective);
 			parts.push_back(s_noperspective_define);
