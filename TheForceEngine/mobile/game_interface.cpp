@@ -57,7 +57,7 @@ static const float ANDROID_LOOK_MOUSE_Y_SCALE =  800.0f;
 // Joystick-mode look is applied every frame while the stick is held, so the per-frame
 // emit needs to be much smaller. Roughly matches iortcw's "look_yaw_joy * 6" at 60Hz.
 static const float ANDROID_LOOK_JOY_X_SCALE   =   12.0f;
-static const float ANDROID_LOOK_JOY_Y_SCALE   =    8.0f;
+static const float ANDROID_LOOK_JOY_Y_SCALE   =    15.0f;
 
 extern "C" {
 
@@ -473,7 +473,7 @@ void PortableGetMove(float* fwd, float* strafe)
     const float yawPx   = s_lookYawMouse   * ANDROID_LOOK_MOUSE_X_SCALE
                         + s_lookYawJoy     * ANDROID_LOOK_JOY_X_SCALE;
     const float pitchPx = s_lookPitchMouse * ANDROID_LOOK_MOUSE_Y_SCALE
-                        + s_lookPitchJoy   * ANDROID_LOOK_JOY_Y_SCALE;
+                        + -s_lookPitchJoy   * ANDROID_LOOK_JOY_Y_SCALE;
 
     if (yawPx != 0.0f || pitchPx != 0.0f)
     {

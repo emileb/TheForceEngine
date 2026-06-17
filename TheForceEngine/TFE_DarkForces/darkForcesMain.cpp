@@ -1375,14 +1375,28 @@ namespace TFE_DarkForces
 		for (s32 i = 0; i < TFE_ARRAYSIZE(c_optionalGobFileNames); i++)
 		{
 			FilePath archivePath;
+			Archive* archive = nullptr;
 			if (TFE_Paths::getFilePath(c_optionalGobFileNames[i], &archivePath))
 			{
 				assert(archivePath.path[0] != 0);
-				Archive* archive = Archive::getArchive(ARCHIVE_GOB, c_optionalGobFileNames[i], archivePath.path);
-				if (archive)
+				archive = Archive::getArchive(ARCHIVE_GOB, c_optionalGobFileNames[i], archivePath.path);
+			}
+			// The optional gobs (e.g. enhanced.gob) are normally only found relative to the
+			// current working directory. If not found, also look in the source-data directory
+			// pointed at by the --gamePath command-line override (PATH_SOURCE_DATA).
+			if (!archive)
+			{
+				const char* sourcePath = TFE_Paths::getPath(PATH_SOURCE_DATA);
+				if (sourcePath && sourcePath[0])
 				{
-					TFE_Paths::addLocalArchive(archive);
+					char fullPath[TFE_MAX_PATH];
+					snprintf(fullPath, TFE_MAX_PATH, "%s%s", sourcePath, c_optionalGobFileNames[i]);
+					archive = Archive::getArchive(ARCHIVE_GOB, c_optionalGobFileNames[i], fullPath);
 				}
+			}
+			if (archive)
+			{
+				TFE_Paths::addLocalArchive(archive);
 			}
 		}
 		return true;

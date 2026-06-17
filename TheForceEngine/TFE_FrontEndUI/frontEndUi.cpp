@@ -1582,7 +1582,20 @@ namespace TFE_FrontEndUI
 		TFE_GameHeader* darkForces = TFE_Settings::getGameHeader("Dark Forces");
 		char testFile[TFE_MAX_PATH];
 		sprintf(testFile, "%senhanced.gob", darkForces->sourcePath);
-		return FileUtil::exists(testFile);
+		if (FileUtil::exists(testFile))
+		{
+			return true;
+		}
+
+		// Also check the source-data directory pointed at by the --gamePath command-line
+		// override (PATH_SOURCE_DATA), which may differ from the stored game header path.
+		const char* sourcePath = TFE_Paths::getPath(PATH_SOURCE_DATA);
+		if (sourcePath && sourcePath[0])
+		{
+			snprintf(testFile, TFE_MAX_PATH, "%senhanced.gob", sourcePath);
+			return FileUtil::exists(testFile);
+		}
+		return false;
 	}
 
 	// Expose the function to toggle enhancements.
