@@ -292,6 +292,16 @@ namespace TFE_A11Y  // a11y is industry slang for accessibility
 			sprintf(programCaptionsDir, "%sCaptions/", programDir);
 		s_captionFileList.addFiles(programCaptionsDir, "txt", filterCaptionFile);
 
+		// Also check the source-data directory pointed at by the --gamePath command-line
+		// override (PATH_SOURCE_DATA) for a Captions folder placed alongside the game data.
+		const char* sourceDir = TFE_Paths::getPath(PATH_SOURCE_DATA);
+		if (sourceDir && sourceDir[0])
+		{
+			char sourceCaptionsDir[TFE_MAX_PATH];
+			snprintf(sourceCaptionsDir, TFE_MAX_PATH, "%sCaptions/", sourceDir);
+			s_captionFileList.addFiles(sourceCaptionsDir, "txt", filterCaptionFile);
+		}
+
 		// Try to load captions for the previously selected language.
 		string search = toFileName(TFE_Settings::getA11ySettings()->language);
 		vector<string>* captionFilePaths = s_captionFileList.getFilePaths();
@@ -309,6 +319,13 @@ namespace TFE_A11Y  // a11y is industry slang for accessibility
 		{
 			string fileName = programCaptionsDir + toFileName("en");
 			loadCaptions(fileName);
+		}
+		// Fall back to an English file placed in the --gamePath Captions folder.
+		if (s_captionsStatus != CC_LOADED && sourceDir && sourceDir[0])
+		{
+			char sourceCaptionsDir[TFE_MAX_PATH];
+			snprintf(sourceCaptionsDir, TFE_MAX_PATH, "%sCaptions/", sourceDir);
+			loadCaptions(string(sourceCaptionsDir) + toFileName("en"));
 		}
 	}
 
