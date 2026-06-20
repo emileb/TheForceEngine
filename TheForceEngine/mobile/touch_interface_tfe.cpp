@@ -5,6 +5,11 @@ extern "C"
 {
 extern int mobile_screen_width;
 extern int mobile_screen_height;
+
+// TFE-only engine queries, implemented in this engine's mobile/game_interface.cpp.
+// Kept out of the shared Clibs_OpenTouch/game_interface.h so they don't pollute it.
+int PortableInGameMenu(float *mouseOffsetX);
+int PortableFrontendMenu(void);
 }
 
 #include "touch_interface.h"
@@ -195,7 +200,6 @@ void TouchInterface::createControls(std::string filesPath)
 
 
     tcGameMain->addControl(new touchcontrols::Button("next_weapon", touchcontrols::RectF(0, 3, 3, 5), "next_weap", PORT_ACT_NEXT_WEP, false, false, "Next weapon"));
-    tcGameMain->addControl(new touchcontrols::Button("reload", touchcontrols::RectF(0, 5, 3, 7), "ammo_reload", PORT_ACT_RELOAD, false, false, "Reload/Snip"));
     tcGameMain->addControl(new touchcontrols::Button("prev_weapon", touchcontrols::RectF(0, 7, 3, 9), "prev_weap", PORT_ACT_PREV_WEP, false, false, "Prev weapon"));
 
     // Quad slider for leaning left and right controls

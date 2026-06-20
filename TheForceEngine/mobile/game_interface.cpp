@@ -350,7 +350,9 @@ void PortableAutomapControl(float zoom, float x, float y)
 }
 
 // Main thread (Android only): apply the accumulated touch pan/zoom to the automap.
-void PortableApplyMapTouch()
+// TFE-only — declared extern "C" at its callers (mobile glue + pda.cpp), not in the
+// shared game_interface.h.
+extern "C" void PortableApplyMapTouch()
 {
     const float panX  = s_mapPanXPix; s_mapPanXPix = 0.0f;
     const float panZ  = s_mapPanZPix; s_mapPanZPix = 0.0f;
@@ -466,7 +468,8 @@ static float menuMouseOffsetX(bool escapeMenu)
 // tap-to-position for the large DOS-style menu buttons. Mirrors the state checks
 // in PortableGetScreenMode(). When non-null, *mouseOffsetX receives the menu's
 // horizontal pillarbox offset (device px) for the absolute-tap path.
-int PortableInGameMenu(float* mouseOffsetX)
+// TFE-only — declared extern "C" at its caller (touch_interface_tfe.cpp).
+extern "C" int PortableInGameMenu(float* mouseOffsetX)
 {
     if (mouseOffsetX) { *mouseOffsetX = 0.0f; }
 
@@ -501,7 +504,8 @@ int PortableInGameMenu(float* mouseOffsetX)
 // buttons, complementing PortableInGameMenu() for the DOS-style in-mission menus.
 // No pillarbox offset is needed: ImGui draws in full window pixels, the same
 // space the absolute mouse position uses.
-int PortableFrontendMenu()
+// TFE-only — declared extern "C" at its caller (touch_interface_tfe.cpp).
+extern "C" int PortableFrontendMenu()
 {
     if (TFE_FrontEndUI::isConsoleOpen()) { return 0; }
     return TFE_FrontEndUI::isMainMenuOpen() ? 1 : 0;
