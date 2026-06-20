@@ -37,6 +37,11 @@ namespace TFE_DarkForces
 	void automap_setPdaActive(JBool enable);
 	void automap_updateDeltaCoords(s32 x, s32 z);
 
+#ifdef __ANDROID__
+	// Smooth multiplicative zoom for the touch pinch gesture (factor > 1 = zoom in).
+	void automap_androidZoom(f32 factor);
+#endif
+
 	s32  automap_getLayer();
 	void automap_setLayer(s32 layer);
 	void automap_disableLock();

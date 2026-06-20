@@ -181,6 +181,17 @@ namespace TFE_DarkForces
 		s_mapZ1 += div16(z, s_screenScale);
 	}
 
+#ifdef __ANDROID__
+	void automap_androidZoom(f32 factor)
+	{
+		s_screenScale = (fixed16_16)((f32)s_screenScale * factor);
+		// Same clamps as the PDA zoom buttons (MAP_ZOOM_IN / MAP_ZOOM_OUT).
+		s_screenScale = max((fixed16_16)0x666, s_screenScale);
+		s_screenScale = min(FIXED(32), s_screenScale);
+		automap_computeScreenBounds();
+	}
+#endif
+
 	void automap_updateMapData(MapUpdateID id)
 	{
 		switch (id)

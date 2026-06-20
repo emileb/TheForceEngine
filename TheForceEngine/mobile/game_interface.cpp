@@ -11,6 +11,8 @@
 #include <TFE_DarkForces/darkForcesMain.h>
 #include <TFE_DarkForces/GameUI/escapeMenu.h>
 #include <TFE_DarkForces/GameUI/pda.h>
+#include <TFE_DarkForces/automap.h>
+#include <TFE_Jedi/Renderer/virtualFramebuffer.h>
 #include <TFE_DarkForces/GameUI/menu.h>
 #include <TFE_Input/inputMapping.h>
 #include <TFE_RenderBackend/renderBackend.h>
@@ -321,8 +323,46 @@ void PortableCommand(const char *cmd)
 {
 }
 
+// PDA map (TS_MAP) pan / zoom from the multitouch mouse. Accumulated here on the
+// touch-UI thread and drained on the main thread by PortableApplyMapTouch(), called
+// from pda_handleInput() — the automap statics aren't safe to poke cross-thread.
+//  pan: x/y are finger motion as screen fractions (0..1); scaled to render pixels here.
+//  zoom: `zoom` is a normalized pinch delta (+ = fingers spreading = zoom in).
+static volatile float s_mapPanXPix = 0.0f;
+static volatile float s_mapPanZPix = 0.0f;
+static volatile float s_mapPinch   = 0.0f;
+static const float ANDROID_MAP_ZOOM_SENS = 2.0f;
+static const float ANDROID_MAP_PAN_SENS = 1.0f;
+
 void PortableAutomapControl(float zoom, float x, float y)
 {
+    s_mapPanXPix += x * ANDROID_MAP_PAN_SENS;
+    s_mapPanZPix += y * ANDROID_MAP_PAN_SENS;
+    s_mapPinch   += zoom;
+}
+
+// Main thread (Android only): apply the accumulated touch pan/zoom to the automap.
+void PortableApplyMapTouch()
+{
+    const float panX  = s_mapPanXPix; s_mapPanXPix = 0.0f;
+    const float panZ  = s_mapPanZPix; s_mapPanZPix = 0.0f;
+    const float pinch = s_mapPinch;   s_mapPinch   = 0.0f;
+
+    if (pinch != 0.0f)
+    {
+        TFE_DarkForces::automap_androidZoom(1.0f + pinch * ANDROID_MAP_ZOOM_SENS);
+    }
+    if (panX != 0.0f || panZ != 0.0f)
+    {
+        // panX/panZ are screen fractions. automap_updateDeltaCoords divides by
+        // s_screenScale, which tracks the render height, so express the delta in
+        // render pixels to make the pan resolution-independent. Keep the sub-pixel
+        // fraction (<<16) so slow drags still move.
+        u32 resW, resH;
+        TFE_Jedi::vfb_getResolution(&resW, &resH);
+        TFE_DarkForces::automap_updateDeltaCoords((s32)(panX * resW * 65536.0f),
+                                                  (s32)(panZ * resH * 65536.0f));
+    }
 }
 
 int PortableShowKeyboard(void)
@@ -339,7 +379,7 @@ touchscreemode_t PortableGetScreenMode()
 {
     if (TFE_FrontEndUI::isConsoleOpen())
     {
-        return TS_CONSOLE;
+        return TS_MENU;
     }
 
     const AppState appState = TFE_FrontEndUI::getAppState();
@@ -380,7 +420,7 @@ touchscreemode_t PortableGetScreenMode()
             return TS_MENU;
 
         case TFE_DarkForces::DF_SUB_MISSION:
-            if (TFE_DarkForces::pda_isOpen())        { return TS_BLANK; }
+            if (TFE_DarkForces::pda_isOpen())        { return TS_MAP;  }
             if (TFE_DarkForces::escapeMenu_isOpen()) { return TS_MENU; }
             return TS_GAME;
     }

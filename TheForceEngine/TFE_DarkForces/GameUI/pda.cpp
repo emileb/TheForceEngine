@@ -35,6 +35,11 @@
 using namespace TFE_Jedi;
 using namespace TFE_Input;
 
+#ifdef __ANDROID__
+// Applies the touch pan/zoom accumulated by the on-screen multitouch mouse (TS_MAP).
+extern "C" void PortableApplyMapTouch(void);
+#endif
+
 namespace TFE_DarkForces
 {
 	///////////////////////////////////////////
@@ -644,6 +649,10 @@ namespace TFE_DarkForces
 	{
 		menu_handleMousePosition();
 		automap_setPdaActive(JTRUE);
+
+#ifdef __ANDROID__
+		PortableApplyMapTouch();
+#endif
 
 		if (TFE_Input::keyPressed(KEY_SPACE))
 		{

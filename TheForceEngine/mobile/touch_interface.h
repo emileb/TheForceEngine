@@ -24,6 +24,10 @@ public:
 
     void mouseMove(int action, float x, float y, float mouse_x, float mouse_y);
 
+    // PDA map (TS_MAP): pinch-zoom / drag-pan the DarkForces map, plus tap-to-click
+    // the engine-rendered tab/pan buttons at the bottom.
+    void automapMultitouchMouse(int action, float x, float y, float dx, float dy);
+
     // OpenJK: dedicated force-power select panel (no equivalent in the base class).
     // gameButton() overrides the base to add the show/hide toggle for it.
     void gameButton(int state, int code);

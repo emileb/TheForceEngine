@@ -75,6 +75,43 @@ void TouchInterface::mouseMove(int action, float x, float y, float mouse_x, floa
     }
 }
 
+// PDA map (TS_MAP). The MultitouchMouse reports raw touch-grid coords (26 x 16 ==
+// full screen) and deltas. One finger drags to pan, two fingers pinch to zoom, and a
+// tap is forwarded as an absolute mouse click so the engine-rendered PDA tab / pan
+// buttons keep working. Pan/zoom go through PortableAutomapControl(), which the engine
+// applies to the automap on its main thread.
+void TouchInterface::automapMultitouchMouse(int action, float x, float y, float dx, float dy)
+{
+    // x/y/dx/dy arrive already normalized to 0..1 across the screen (same space the
+    // normal Mouse control emits), so map straight to window pixels.
+    if(action == MULTITOUCHMOUSE_MOVE)
+    {
+        // dx/dy are (last - new) screen fractions; negate so the map follows the
+        // finger. Left normalized — the engine scales by its render resolution so the
+        // pan feel is resolution-independent.
+        PortableAutomapControl(0, -dx, -dy);
+    }
+    else if(action == MULTITOUCHMOUSE_ZOOM)
+    {
+        // x is the pinch distance delta in screen fractions (+ = fingers spreading).
+        PortableAutomapControl(x, 0, 0);
+    }
+    else if(action == MULTITOUCHMOUSE_TAP)
+    {
+        // Same as mouseMove()'s tap path: the PDA is a centred 4:3 Landru menu, so
+        // subtract its pillarbox offset (via PortableInGameMenu) so the click lands
+        // under the finger. mobile_screen_width/height are the device pixels the
+        // engine maps the absolute mouse position from.
+        float menuOffsetX = 0;
+        PortableInGameMenu(&menuOffsetX);
+
+        MouseMoveAbsolute(x * mobile_screen_width - menuOffsetX, y * mobile_screen_height);
+        MouseButton(1, BUTTON_PRIMARY);
+        waitFrames(3);
+        MouseButton(0, BUTTON_PRIMARY);
+    }
+}
+
 void TouchInterface::createControls(std::string filesPath)
 {
     tcMenuMain = new touchcontrols::TouchControls("menu", false, true, 10, true);
@@ -93,6 +130,7 @@ void TouchInterface::createControls(std::string filesPath)
     tcGamepadUtility = new touchcontrols::TouchControls("gamepad_utility", false, false);
     tcDPadInventory = new touchcontrols::TouchControls("dpad_inventory", false, false);
     tcMouse = new touchcontrols::TouchControls("mouse", false, false);
+    tcAutomap = new touchcontrols::TouchControls("automap", false, false);
 
     //Menu -------------------------------------------
     //------------------------------------------------------
@@ -141,16 +179,12 @@ void TouchInterface::createControls(std::string filesPath)
 
     tcGameMain->addControl(new touchcontrols::Button("quick_save", touchcontrols::RectF(24, 0, 26, 2), "save", PORT_ACT_QUICKSAVE, false, false, "Quick save"));
     tcGameMain->addControl(new touchcontrols::Button("quick_load", touchcontrols::RectF(20, 0, 22, 2), "load", PORT_ACT_QUICKLOAD, false, false, "Quick load"));
-    tcGameMain->addControl(new touchcontrols::Button("binocular", touchcontrols::RectF(17, 0, 19, 2), "binocular", PORT_ACT_ZOOM_IN, false, false, "Binoculars"));
 
     tcGameMain->addControl(new touchcontrols::Button("keyboard", touchcontrols::RectF(8, 0, 10, 2), "keyboard", KEY_SHOW_KBRD, false, false, "Show Keyboard"));
     tcGameMain->addControl(new touchcontrols::Button("jump", touchcontrols::RectF(24, 3, 26, 5), "jump", PORT_ACT_JUMP, false, false, "Jump/Swim up"));
     tcGameMain->addControl(new touchcontrols::Button("quick_command", touchcontrols::RectF(21, 3, 23, 5), "star", KEY_QUICK_COMMANDS, false, true, "Quick Commands"));
 
-
     tcGameMain->addControl(new touchcontrols::Button("crouch", touchcontrols::RectF(24, 14, 26, 16), "crouch", PORT_ACT_DOWN, false, false, "Crouch/Swim down"));
-//tcGameMain->addControl(new touchcontrols::Button("attack_alt_toggle", touchcontrols::RectF(21, 5, 23, 7), "shoot_alt", PORT_ACT_TOGGLE_ALT_ATTACK, false, true, "Alt attack (toggle)"));
-    tcGameMain->addControl(new touchcontrols::Button("kick", touchcontrols::RectF(19, 3, 21, 5), "kick", PORT_ACT_KICK, false, true, "Kick"));
 
     tcGameMain->addControl(new touchcontrols::Button("use_inventory", touchcontrols::RectF(0, 9, 2, 11), "inventory", KEY_SHOW_INV, false, false, "Show Inventory"));
 
@@ -332,6 +366,18 @@ void TouchInterface::createControls(std::string filesPath)
     tcMouse->setAlpha(0.9);
     tcMouse->signal_button.connect(sigc::mem_fun(this, &TouchInterface::mouseButton));
 
+    // Automap / PDA map -------------------------------------------
+    //------------------------------------------------------
+    // Full-screen multitouch mouse: one finger drags to pan, two fingers pinch to
+    // zoom, a tap clicks (so the engine-rendered PDA tab/pan buttons still work).
+    touchcontrols::MultitouchMouse *mapMouse = new touchcontrols::MultitouchMouse("gamemouse", touchcontrols::RectF(0, 0, 26, 16), "");
+    mapMouse->setHideGraphics(true);
+    mapMouse->signal_action.connect(sigc::mem_fun(this, &TouchInterface::automapMultitouchMouse));
+    tcAutomap->addControl(mapMouse);
+    tcAutomap->addControl(new touchcontrols::Button("back", touchcontrols::RectF(0, 0, 2, 2), "back_button", KEY_BACK_BUTTON, false, false, "Back"));
+    tcAutomap->signal_button.connect(sigc::mem_fun(this, &TouchInterface::menuButton));
+    tcAutomap->setAlpha(0.9);
+
 
     //---------------------------------------------------------------
     //---------------------------------------------------------------
@@ -348,6 +394,7 @@ void TouchInterface::createControls(std::string filesPath)
     controlsContainer.addControlGroup(tcWeaponWheel);
     controlsContainer.addControlGroup(tcBlank);
     controlsContainer.addControlGroup(tcMouse);
+    controlsContainer.addControlGroup(tcAutomap);
 
     std::string
     newSettings = (std::string) filesPath + "/touch_settings_"
@@ -371,6 +418,9 @@ void TouchInterface::createControls(std::string filesPath)
     ENGINE_NAME
     ".xml");
     tcCustomButtons->setXMLFile((std::string) filesPath + "/custom_buttons_0_"
+    ENGINE_NAME
+    ".xml");
+    tcAutomap->setXMLFile((std::string) filesPath + "/automap_"
     ENGINE_NAME
     ".xml");
 
