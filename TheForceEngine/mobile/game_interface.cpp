@@ -128,6 +128,14 @@ static int actionForPortAct(int port_act)
         case PORT_ACT_DATAPAD:    return IADF_PDA_TOGGLE;
         case PORT_ACT_CONSOLE:    return IAS_CONSOLE;
 
+        // DF inventory items (toggled directly from the touch inventory grid).
+        case PORT_ACT_DF_NIGHT_VISION: return IADF_NIGHT_VISION_TOG;
+        case PORT_ACT_DF_CLEATS:       return IADF_CLEATS_TOGGLE;
+        case PORT_ACT_DF_GAS_MASK:     return IADF_GAS_MASK_TOGGLE;
+        case PORT_ACT_DF_HEAD_LAMP:    return IADF_HEAD_LAMP_TOGGLE;
+        case PORT_ACT_DF_HEADWAVE:     return IADF_HEADWAVE_TOGGLE;
+        case PORT_ACT_HOLSTER_WEAPON:  return IADF_HOLSTER_WEAPON;
+
         // Save / load.
         case PORT_ACT_QUICKSAVE:  return IAS_QUICK_SAVE;
         case PORT_ACT_QUICKLOAD:  return IAS_QUICK_LOAD;

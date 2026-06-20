@@ -257,11 +257,15 @@ void TouchInterface::createControls(std::string filesPath)
     // Inventory -------------------------------------------
     //------------------------------------------------------
 
-    uiInventoryButtonGrid = new touchcontrols::ButtonGrid("inventory_grid", touchcontrols::RectF(3, 9, 11, 11), "inventory_bg", 4, 1);
-    uiInventoryButtonGrid->addCell(0, 0, "inventory_left", PORT_ACT_INVPREV);
-    uiInventoryButtonGrid->addCell(1, 0, "inventory_right", PORT_ACT_INVNEXT);
-    uiInventoryButtonGrid->addCell(2, 0, "inventory_use", PORT_ACT_INVUSE);
-    uiInventoryButtonGrid->addCell(3, 0, "inventory_drop", PORT_ACT_INVDROP);
+    // DF items selected directly (each cell toggles the item) instead of the old
+    // prev/next/use/drop panel.
+    uiInventoryButtonGrid = new touchcontrols::ButtonGrid("inventory_grid", touchcontrols::RectF(7, 5, 19, 11), "inventory_bg", 3, 2);
+    uiInventoryButtonGrid->addCell(0, 0, "df_goggles",  PORT_ACT_DF_NIGHT_VISION);
+    uiInventoryButtonGrid->addCell(1, 0, "df_cleats",   PORT_ACT_DF_CLEATS);
+    uiInventoryButtonGrid->addCell(2, 0, "df_mask",     PORT_ACT_DF_GAS_MASK);
+    uiInventoryButtonGrid->addCell(0, 1, "df_headlamp", PORT_ACT_DF_HEAD_LAMP);
+    uiInventoryButtonGrid->addCell(1, 1, "df_headwave", PORT_ACT_DF_HEADWAVE);
+    uiInventoryButtonGrid->addCell(2, 1, "df_holster",  PORT_ACT_HOLSTER_WEAPON);
 
 
     uiInventoryButtonGrid->signal_outside.connect(sigc::mem_fun(this, &TouchInterface::inventoryOutside));
