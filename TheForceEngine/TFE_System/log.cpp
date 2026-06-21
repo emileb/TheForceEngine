@@ -19,6 +19,7 @@
 
 #ifdef __ANDROID__
 	#include <android/log.h>
+	#include "LogWritter.h"
 	#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO,"TFE", __VA_ARGS__))
 #endif
 
@@ -82,6 +83,7 @@ namespace TFE_System
 #endif
 #ifdef __ANDROID__
 		LOGI("%s", s_workStr);
+		LogWritter_Write(s_workStr);
 #endif
 	}
 
@@ -146,6 +148,7 @@ namespace TFE_System
 #endif
 #ifdef __ANDROID__
 		LOGI("%s", s_workStr);
+		LogWritter_Write(s_workStr);
 #endif
 		//Critical log messages also act as asserts in the debugger.
 		if (type == LOG_CRITICAL)
