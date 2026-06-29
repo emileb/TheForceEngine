@@ -59,8 +59,8 @@ static const float ANDROID_LOOK_MOUSE_X_SCALE = 2500.0f;
 static const float ANDROID_LOOK_MOUSE_Y_SCALE =  800.0f;
 // Joystick-mode look is applied every frame while the stick is held, so the per-frame
 // emit needs to be much smaller. Roughly matches iortcw's "look_yaw_joy * 6" at 60Hz.
-static const float ANDROID_LOOK_JOY_X_SCALE   =   20.0f;
-static const float ANDROID_LOOK_JOY_Y_SCALE   =    15.0f;
+static const float ANDROID_LOOK_JOY_X_SCALE   =   30.0f;
+static const float ANDROID_LOOK_JOY_Y_SCALE   =    20.0f;
 
 extern "C" {
 
