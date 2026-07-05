@@ -392,9 +392,12 @@ int PortableShowKeyboard(void)
     return 0;
 }
 
+// Smart-run toggle. DF's df_autorun makes the player run by default (IADF_RUN then
+// acts as a walk modifier), which is exactly what the touch run button wants.
 bool PortableSetAlwaysRun(bool run)
 {
-    return false;
+    TFE_Settings::getGameSettings()->df_autorun = run;
+    return true;
 }
 
 touchscreemode_t PortableGetScreenMode()

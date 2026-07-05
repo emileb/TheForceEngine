@@ -192,6 +192,8 @@ void TouchInterface::createControls(std::string filesPath)
 
     tcGameMain->addControl(new touchcontrols::Button("crouch", touchcontrols::RectF(24, 14, 26, 16), "crouch", PORT_ACT_DOWN, false, false, "Crouch/Swim down"));
 
+    tcGameMain->addControl(runButton); // Common run button created in touch_interface_base
+
     tcGameMain->addControl(new touchcontrols::Button("use_inventory", touchcontrols::RectF(0, 9, 2, 11), "inventory", KEY_SHOW_INV, false, false, "Show Inventory"));
 
     tcGameMain->addControl(new touchcontrols::Button("show_custom", touchcontrols::RectF(0, 2, 2, 4), "custom_show", KEY_SHOW_CUSTOM, false, true, "Show custom"));
@@ -265,11 +267,11 @@ void TouchInterface::createControls(std::string filesPath)
     // prev/next/use/drop panel.
     uiInventoryButtonGrid = new touchcontrols::ButtonGrid("inventory_grid", touchcontrols::RectF(7, 5, 16, 11), "inventory_bg", 3, 2);
     uiInventoryButtonGrid->addCell(0, 0, "goggles",  PORT_ACT_DF_NIGHT_VISION);
-    uiInventoryButtonGrid->addCell(1, 0, "df_cleats",   PORT_ACT_DF_CLEATS);
+    uiInventoryButtonGrid->addCell(1, 0, "cleats",   PORT_ACT_DF_CLEATS);
     uiInventoryButtonGrid->addCell(2, 0, "gas_mask",     PORT_ACT_DF_GAS_MASK);
     uiInventoryButtonGrid->addCell(0, 1, "flashlight", PORT_ACT_DF_HEAD_LAMP);
     uiInventoryButtonGrid->addCell(1, 1, "df_headwave", PORT_ACT_DF_HEADWAVE);
-    uiInventoryButtonGrid->addCell(2, 1, "df_holster",  PORT_ACT_HOLSTER_WEAPON);
+    uiInventoryButtonGrid->addCell(2, 1, "holster",  PORT_ACT_HOLSTER_WEAPON);
 
 
     uiInventoryButtonGrid->signal_outside.connect(sigc::mem_fun(this, &TouchInterface::inventoryOutside));
